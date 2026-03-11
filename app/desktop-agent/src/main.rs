@@ -1,4 +1,7 @@
-#![cfg_attr(not(target_os = "macos"), allow(dead_code, unused_imports))]
+#![cfg_attr(
+    not(any(target_os = "macos", target_os = "windows")),
+    allow(dead_code, unused_imports)
+)]
 
 use anyhow::Result;
 use tokio::sync::mpsc;
@@ -10,8 +13,8 @@ mod event;
 mod platform;
 mod transport;
 
-#[cfg(not(target_os = "macos"))]
-compile_error!("desktop-agent MVP currently supports macOS only");
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+compile_error!("desktop-agent currently supports macOS and Windows only");
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<()> {
@@ -34,7 +37,6 @@ async fn main() -> Result<()> {
 
     let _transport_task = tokio::spawn(transport::run_transport(cfg.server_ws_url.clone(), rx));
 
-    #[cfg(target_os = "macos")]
     platform::run_foreground_watcher(cfg.device_id.clone(), tx)?;
     Ok(())
 }

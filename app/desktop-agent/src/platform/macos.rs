@@ -8,9 +8,7 @@ use objc2::rc::autoreleasepool;
 use objc2_app_kit::{
     NSRunningApplication, NSWorkspace, NSWorkspaceDidActivateApplicationNotification,
 };
-use objc2_foundation::{
-    NSDate, NSDefaultRunLoopMode, NSNotification, NSRunLoop,
-};
+use objc2_foundation::{NSDate, NSDefaultRunLoopMode, NSNotification, NSRunLoop};
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 
@@ -116,7 +114,8 @@ fn emit_frontmost_event(
         "foreground app changed"
     );
 
-    let event = ActivityEnvelope::foreground_changed(device_id, app_info);
+    let event =
+        ActivityEnvelope::foreground_changed(device_id, "macos", "nsworkspace", app_info, None);
     if let Err(err) = tx.send(event) {
         warn!(error = %err, "event channel closed, dropping event");
     }

@@ -1,6 +1,13 @@
 use std::env;
 use tracing::warn;
 
+#[cfg(target_os = "macos")]
+const DEFAULT_DEVICE_ID: &str = "macos-agent";
+#[cfg(target_os = "windows")]
+const DEFAULT_DEVICE_ID: &str = "windows-agent";
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+const DEFAULT_DEVICE_ID: &str = "desktop-agent";
+
 #[derive(Debug, Clone)]
 pub struct Config {
     pub server_ws_url: String,
@@ -18,7 +25,7 @@ impl Config {
                 .ok()
                 .and_then(|host| host.into_string().ok())
                 .filter(|host| !host.is_empty())
-                .unwrap_or_else(|| "macos-agent".to_string())
+                .unwrap_or_else(|| DEFAULT_DEVICE_ID.to_string())
         });
 
         Self {

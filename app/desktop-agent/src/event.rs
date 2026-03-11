@@ -31,18 +31,24 @@ pub struct AppInfo {
 }
 
 impl ActivityEnvelope {
-    pub fn foreground_changed(device_id: &str, app: AppInfo) -> Self {
+    pub fn foreground_changed(
+        device_id: &str,
+        platform: &'static str,
+        source: &'static str,
+        app: AppInfo,
+        window_title: Option<String>,
+    ) -> Self {
         Self {
             message_type: "activity",
             payload: ActivityPayload {
                 event_id: Uuid::new_v4().to_string(),
                 ts: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
                 device_id: device_id.to_string(),
-                platform: "macos",
+                platform,
                 kind: "foreground_changed",
                 app,
-                window_title: None,
-                source: "nsworkspace",
+                window_title,
+                source,
             },
         }
     }
