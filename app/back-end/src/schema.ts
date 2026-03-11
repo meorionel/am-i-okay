@@ -14,6 +14,19 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function pickValue(
+  input: Record<string, unknown>,
+  ...keys: string[]
+): unknown {
+  for (const key of keys) {
+    if (key in input) {
+      return input[key];
+    }
+  }
+
+  return undefined;
+}
+
 function parseApp(input: unknown): ParseResult<ActivityApp> {
   if (!isRecord(input)) {
     return { ok: false, error: "payload.app must be an object" };
@@ -48,13 +61,13 @@ export function parseActivityEvent(input: unknown): ParseResult<ActivityEvent> {
     return { ok: false, error: "payload must be an object" };
   }
 
-  const eventId = input.eventId;
+  const eventId = pickValue(input, "eventId", "event_id");
   const ts = input.ts;
-  const deviceId = input.deviceId;
+  const deviceId = pickValue(input, "deviceId", "device_id");
   const platform = input.platform;
   const kind = input.kind;
   const app = input.app;
-  const windowTitle = input.windowTitle;
+  const windowTitle = pickValue(input, "windowTitle", "window_title");
   const source = input.source;
 
   if (!isNonEmptyString(eventId)) {
@@ -72,8 +85,15 @@ export function parseActivityEvent(input: unknown): ParseResult<ActivityEvent> {
   if (kind !== "foreground_changed") {
     return { ok: false, error: "payload.kind must be foreground_changed" };
   }
-  if (windowTitle !== undefined && typeof windowTitle !== "string") {
-    return { ok: false, error: "payload.windowTitle must be a string when provided" };
+  if (
+    windowTitle !== undefined &&
+    windowTitle !== null &&
+    typeof windowTitle !== "string"
+  ) {
+    return {
+      ok: false,
+      error: "payload.windowTitle must be a string or null when provided",
+    };
   }
   if (!isNonEmptyString(source)) {
     return { ok: false, error: "payload.source must be a non-empty string" };
@@ -93,7 +113,7 @@ export function parseActivityEvent(input: unknown): ParseResult<ActivityEvent> {
       platform: platform as Platform,
       kind: "foreground_changed",
       app: appResult.data,
-      windowTitle,
+      windowTitle: windowTitle === null ? undefined : windowTitle,
       source,
     },
   };

@@ -1,14 +1,9 @@
-use std::ptr::NonNull;
-use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use block2::RcBlock;
 use objc2::rc::autoreleasepool;
-use objc2_app_kit::{
-    NSRunningApplication, NSWorkspace, NSWorkspaceDidActivateApplicationNotification,
-};
-use objc2_foundation::{NSNotification, NSRunLoop};
+use objc2_app_kit::{NSRunningApplication, NSWorkspace};
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
 
@@ -37,75 +32,46 @@ pub fn start_foreground_watcher(
 }
 
 fn run_watcher(device_id: String, tx: mpsc::UnboundedSender<ActivityEnvelope>) -> Result<()> {
-    let last_app = Arc::new(Mutex::new(None::<LastApp>));
+    let mut last_app = None::<LastApp>;
+    let mut last_read_error_at = None::<Instant>;
 
-    autoreleasepool(|_| {
-        let workspace = NSWorkspace::sharedWorkspace();
-        let center = workspace.notificationCenter();
+    info!("foreground watcher started (polling)");
 
-        let tx_for_callback = tx.clone();
-        let last_for_callback = Arc::clone(&last_app);
-        let device_id_for_callback = device_id.clone();
-
-        let callback = RcBlock::new(move |_notification: NonNull<NSNotification>| {
-            emit_frontmost_event(
-                &device_id_for_callback,
-                &tx_for_callback,
-                &last_for_callback,
-            );
-        });
-
-        let observer = unsafe {
-            center.addObserverForName_object_queue_usingBlock(
-                Some(NSWorkspaceDidActivateApplicationNotification),
-                None,
-                None,
-                &callback,
-            )
-        };
-
-        emit_frontmost_event(&device_id, &tx, &last_app);
-
-        info!("foreground watcher started (NSWorkspace notifications)");
-
-        let _keep_observer_alive = observer;
-        let _keep_block_alive = callback;
-        NSRunLoop::currentRunLoop().run();
-    });
-
-    Ok(())
+    loop {
+        emit_frontmost_event(&device_id, &tx, &mut last_app, &mut last_read_error_at);
+        thread::sleep(Duration::from_millis(1000));
+    }
 }
 
 fn emit_frontmost_event(
     device_id: &str,
     tx: &mpsc::UnboundedSender<ActivityEnvelope>,
-    last_app: &Arc<Mutex<Option<LastApp>>>,
+    last_app: &mut Option<LastApp>,
+    last_read_error_at: &mut Option<Instant>,
 ) {
     let Some(app_info) = current_frontmost_app() else {
-        warn!("cannot read frontmost app");
+        // Throttle noisy logs when macOS API is temporarily unavailable.
+        let now = Instant::now();
+        let should_log = last_read_error_at
+            .map(|at| now.duration_since(at) >= Duration::from_secs(30))
+            .unwrap_or(true);
+        if should_log {
+            warn!("cannot read frontmost app");
+            *last_read_error_at = Some(now);
+        }
         return;
     };
+    *last_read_error_at = None;
 
     let current = LastApp {
         bundle_id: app_info.id.clone(),
         pid: app_info.pid,
     };
 
-    {
-        let mut guard = match last_app.lock() {
-            Ok(guard) => guard,
-            Err(_) => {
-                warn!("last_app lock poisoned");
-                return;
-            }
-        };
-
-        if guard.as_ref() == Some(&current) {
-            return;
-        }
-
-        *guard = Some(current);
+    if last_app.as_ref() == Some(&current) {
+        return;
     }
+    *last_app = Some(current);
 
     info!(
         app_name = %app_info.name,

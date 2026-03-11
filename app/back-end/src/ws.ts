@@ -35,14 +35,20 @@ export class WebSocketHub {
     const text = toText(message);
 
     if (ws.data.role !== "agent") {
-      this.sendError(ws, "dashboard connection is read-only");
+      this.sendError(
+        ws,
+        "dashboard connection is read-only; agent must connect to /ws/agent",
+      );
+      ws.close(1008, "agent must connect to /ws/agent");
       return;
     }
 
     const parsed = parseAgentMessage(text);
     if (!parsed.ok) {
       this.sendError(ws, parsed.error);
-      console.error(`[ws] invalid agent message: ${parsed.error}`);
+      console.error(
+        `[ws] invalid agent message: ${parsed.error} raw=${text.slice(0, 400)}`,
+      );
       return;
     }
 

@@ -44,6 +44,14 @@ pub async fn run_transport(
                                     warn!(?frame, "websocket closed by server, reconnecting");
                                     break;
                                 }
+                                Some(Ok(Message::Text(text))) => {
+                                    handle_server_message(text.as_ref());
+                                }
+                                Some(Ok(Message::Binary(data))) => {
+                                    if let Ok(text) = std::str::from_utf8(data.as_ref()) {
+                                        handle_server_message(text);
+                                    }
+                                }
                                 Some(Ok(_)) => {}
                                 Some(Err(err)) => {
                                     warn!(error = %err, "websocket read failed, reconnecting");
@@ -101,4 +109,26 @@ async fn send_event(
         "event sent"
     );
     Ok(())
+}
+
+fn handle_server_message(raw: &str) {
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(raw) else {
+        return;
+    };
+
+    let Some(message_type) = json.get("type").and_then(|value| value.as_str()) else {
+        return;
+    };
+
+    if message_type != "error" {
+        return;
+    }
+
+    let message = json
+        .get("payload")
+        .and_then(|payload| payload.get("message"))
+        .and_then(|value| value.as_str())
+        .unwrap_or("unknown server error");
+
+    warn!(message = %message, "server sent error message");
 }
