@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use tokio::sync::mpsc;
-use tracing::{error, info};
+use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 mod config;
@@ -32,25 +32,9 @@ async fn main() -> Result<()> {
 
     let (tx, rx) = mpsc::unbounded_channel();
 
-    let mut transport_task = tokio::spawn(transport::run_transport(cfg.server_ws_url.clone(), rx));
+    let _transport_task = tokio::spawn(transport::run_transport(cfg.server_ws_url.clone(), rx));
 
     #[cfg(target_os = "macos")]
-    let _watcher_thread = platform::start_foreground_watcher(cfg.device_id.clone(), tx)?;
-
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {
-            info!("received ctrl+c, shutting down");
-        }
-        transport_result = &mut transport_task => {
-            match transport_result {
-                Ok(Ok(())) => info!("transport exited"),
-                Ok(Err(err)) => error!(error = %err, "transport failed"),
-                Err(err) => error!(error = %err, "transport task panicked"),
-            }
-        }
-    }
-
-    transport_task.abort();
-    info!("agent exited");
+    platform::run_foreground_watcher(cfg.device_id.clone(), tx)?;
     Ok(())
 }

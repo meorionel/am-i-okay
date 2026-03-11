@@ -2,4 +2,4 @@
 pub mod macos;
 
 #[cfg(target_os = "macos")]
-pub use macos::start_foreground_watcher;
+pub use macos::run_foreground_watcher;
