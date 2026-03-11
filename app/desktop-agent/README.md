@@ -22,6 +22,7 @@
 ## 环境变量
 
 - `AGENT_SERVER_WS_URL`
+  - 作为启动交互的默认值
   - 默认值：`ws://127.0.0.1:3000/ws/agent`
 - `AGENT_DEVICE_ID`
   - 未提供时自动使用主机名
@@ -33,6 +34,15 @@
 cd app/desktop-agent
 cargo run
 ```
+
+启动后会要求输入后端地址，支持以下形式：
+
+- `ws://127.0.0.1:3000`
+- `wss://example.com`
+- `http://127.0.0.1:3000`
+- `https://example.com`
+
+程序会自动规范成 `/ws/agent` 地址。
 
 ## 事件消息格式
 

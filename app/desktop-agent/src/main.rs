@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
         .compact()
         .init();
 
-    let cfg = config::Config::from_env();
+    let cfg = config::Config::from_prompt()?;
     info!(
         server_ws_url = %cfg.server_ws_url,
         device_id = %cfg.device_id,

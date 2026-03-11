@@ -1,4 +1,5 @@
 use std::env;
+use std::io::{self, Write};
 use tracing::warn;
 
 #[cfg(target_os = "macos")]
@@ -15,10 +16,10 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_env() -> Self {
-        let raw_server_ws_url = env::var("AGENT_SERVER_WS_URL")
+    pub fn from_prompt() -> io::Result<Self> {
+        let default_server_ws_url = env::var("AGENT_SERVER_WS_URL")
             .unwrap_or_else(|_| "ws://127.0.0.1:3000/ws/agent".to_string());
-        let server_ws_url = normalize_server_ws_url(raw_server_ws_url);
+        let server_ws_url = prompt_server_ws_url(&default_server_ws_url)?;
 
         let device_id = env::var("AGENT_DEVICE_ID").unwrap_or_else(|_| {
             hostname::get()
@@ -28,23 +29,62 @@ impl Config {
                 .unwrap_or_else(|| DEFAULT_DEVICE_ID.to_string())
         });
 
-        Self {
+        Ok(Self {
             server_ws_url,
             device_id,
-        }
+        })
     }
 }
 
 fn normalize_server_ws_url(url: String) -> String {
-    if let Some(prefix) = url.strip_suffix("/ws/dashboard") {
+    let trimmed = url.trim().trim_end_matches('/').to_string();
+
+    if let Some(prefix) = trimmed.strip_suffix("/ws/agent") {
+        return format!("{prefix}/ws/agent");
+    }
+
+    if let Some(prefix) = trimmed.strip_suffix("/ws/dashboard") {
         let corrected = format!("{prefix}/ws/agent");
         warn!(
-            original = %url,
+            original = %trimmed,
             corrected = %corrected,
             "AGENT_SERVER_WS_URL points to /ws/dashboard; auto-corrected to /ws/agent"
         );
         return corrected;
     }
 
-    url
+    if trimmed.starts_with("http://") {
+        return format!("ws://{}/ws/agent", trimmed.trim_start_matches("http://"));
+    }
+
+    if trimmed.starts_with("https://") {
+        return format!("wss://{}/ws/agent", trimmed.trim_start_matches("https://"));
+    }
+
+    if trimmed.starts_with("ws://") || trimmed.starts_with("wss://") {
+        return format!("{trimmed}/ws/agent");
+    }
+
+    format!("ws://{trimmed}/ws/agent")
+}
+
+fn prompt_server_ws_url(default_value: &str) -> io::Result<String> {
+    let mut stdout = io::stdout();
+    writeln!(
+        stdout,
+        "Please enter backend address (example: ws://127.0.0.1:3000 or http://127.0.0.1:3000)"
+    )?;
+    write!(stdout, "Backend address [{default_value}]: ")?;
+    stdout.flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+
+    let raw = if input.trim().is_empty() {
+        default_value.to_string()
+    } else {
+        input
+    };
+
+    Ok(normalize_server_ws_url(raw))
 }
