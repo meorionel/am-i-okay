@@ -1,6 +1,6 @@
 import { ActivityStore } from "./store";
 import type { WsClientData } from "./types";
-import { jsonResponse } from "./utils";
+import { corsHeaders, jsonResponse } from "./utils";
 import { WebSocketHub } from "./ws";
 
 const host = Bun.env.HOST ?? "0.0.0.0";
@@ -15,6 +15,13 @@ Bun.serve<WsClientData>({
   port,
   fetch(req, server) {
     const url = new URL(req.url);
+
+    if (req.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders(),
+      });
+    }
 
     if (req.method === "GET" && url.pathname === "/health") {
       return jsonResponse({ ok: true });
