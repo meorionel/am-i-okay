@@ -204,6 +204,7 @@ fn current_foreground_app(hwnd_hint: Option<HWND>) -> Option<ForegroundApp> {
         app: AppInfo {
             id: process_path,
             name: app_name,
+            title: window_title.clone(),
             pid,
         },
         window_title,

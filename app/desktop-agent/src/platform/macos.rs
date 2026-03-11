@@ -138,11 +138,13 @@ fn app_from_running_app(app: &NSRunningApplication) -> AppInfo {
         .localizedName()
         .map(|name| name.to_string())
         .unwrap_or_else(|| bundle_id.clone());
+    let title = Some(name.clone());
     let pid = app.processIdentifier() as i32;
 
     AppInfo {
         id: bundle_id,
         name,
+        title,
         pid,
     }
 }

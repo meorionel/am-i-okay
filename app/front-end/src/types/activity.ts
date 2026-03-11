@@ -1,6 +1,7 @@
 export interface AppInfo {
   id: string;
   name: string;
+  title?: string | null;
   pid?: number;
 }
 
@@ -83,6 +84,15 @@ export function parseActivityEvent(input: unknown): ActivityEvent | null {
   const pid = readNumber(appRaw.pid);
   if (pid !== undefined) {
     event.app.pid = pid;
+  }
+
+  if (appRaw.title === null) {
+    event.app.title = null;
+  } else {
+    const appTitle = readString(appRaw.title);
+    if (appTitle) {
+      event.app.title = appTitle;
+    }
   }
 
   if (input.windowTitle === null) {

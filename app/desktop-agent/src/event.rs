@@ -27,6 +27,8 @@ pub struct ActivityPayload {
 pub struct AppInfo {
     pub id: String,
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
     pub pid: i32,
 }
 
@@ -35,9 +37,13 @@ impl ActivityEnvelope {
         device_id: &str,
         platform: &'static str,
         source: &'static str,
-        app: AppInfo,
+        mut app: AppInfo,
         window_title: Option<String>,
     ) -> Self {
+        if app.title.is_none() {
+            app.title = window_title.clone();
+        }
+
         Self {
             message_type: "activity",
             payload: ActivityPayload {

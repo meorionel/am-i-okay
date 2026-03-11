@@ -34,6 +34,7 @@ function parseApp(input: unknown): ParseResult<ActivityApp> {
 
   const id = input.id;
   const name = input.name;
+  const title = input.title;
   const pid = input.pid;
 
   if (!isNonEmptyString(id)) {
@@ -41,6 +42,9 @@ function parseApp(input: unknown): ParseResult<ActivityApp> {
   }
   if (!isNonEmptyString(name)) {
     return { ok: false, error: "payload.app.name must be a non-empty string" };
+  }
+  if (title !== undefined && title !== null && typeof title !== "string") {
+    return { ok: false, error: "payload.app.title must be a string or null when provided" };
   }
   if (pid !== undefined && (typeof pid !== "number" || !Number.isFinite(pid))) {
     return { ok: false, error: "payload.app.pid must be a finite number when provided" };
@@ -51,6 +55,7 @@ function parseApp(input: unknown): ParseResult<ActivityApp> {
     data: {
       id,
       name,
+      title: title === null ? undefined : title,
       pid,
     },
   };

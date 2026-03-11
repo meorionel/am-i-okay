@@ -5,6 +5,7 @@ export type ActivityKind = "foreground_changed";
 export interface ActivityApp {
   id: string;
   name: string;
+  title?: string;
   pid?: number;
 }
 
