@@ -6,8 +6,6 @@
       "name": "back-end",
       "devDependencies": {
         "@types/bun": "latest",
-      },
-      "peerDependencies": {
         "typescript": "^5",
       },
     },
