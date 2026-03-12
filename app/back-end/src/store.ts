@@ -1,6 +1,7 @@
 import type {
   ActivityEvent,
   DeviceActivitySnapshot,
+  DeviceStatus,
   RecentActivityItem,
 } from "./types";
 
@@ -37,6 +38,7 @@ function sortByTimestampDesc<T extends { ts: string }>(items: T[]): T[] {
 
 export class ActivityStore {
   private readonly latestByDevice = new Map<string, ActivityEvent>();
+  private latestStatus: DeviceStatus | null = null;
   private readonly recentByDevice = new Map<string, RecentActivityItem[]>();
   private readonly recentGlobal: RecentActivityItem[] = [];
 
@@ -47,6 +49,14 @@ export class ActivityStore {
 
   getAll(): ActivityEvent[] {
     return sortByTimestampDesc(Array.from(this.latestByDevice.values()));
+  }
+
+  upsertStatus(status: DeviceStatus): void {
+    this.latestStatus = status;
+  }
+
+  getLatestStatus(): DeviceStatus | null {
+    return this.latestStatus;
   }
 
   getDeviceSnapshots(): DeviceActivitySnapshot[] {

@@ -1,4 +1,10 @@
-import type { ActivityApp, ActivityEvent, AgentIncomingMessage, Platform } from "./types";
+import type {
+  ActivityApp,
+  ActivityEvent,
+  AgentIncomingMessage,
+  DeviceStatus,
+  Platform,
+} from "./types";
 
 type ParseSuccess<T> = { ok: true; data: T };
 type ParseFailure = { ok: false; error: string };
@@ -129,6 +135,50 @@ export function parseActivityEvent(input: unknown): ParseResult<ActivityEvent> {
   };
 }
 
+export function parseDeviceStatus(input: unknown): ParseResult<DeviceStatus> {
+  if (!isRecord(input)) {
+    return { ok: false, error: "payload must be an object" };
+  }
+
+  const ts = input.ts;
+  const deviceId = pickValue(input, "deviceId", "device_id");
+  const agentName = pickValue(input, "agentName", "agent_name");
+  const platform = input.platform;
+  const statusText = pickValue(input, "statusText", "status_text");
+  const source = input.source;
+
+  if (!isNonEmptyString(ts) || Number.isNaN(Date.parse(ts))) {
+    return { ok: false, error: "payload.ts must be a valid ISO datetime string" };
+  }
+  if (!isNonEmptyString(deviceId)) {
+    return { ok: false, error: "payload.deviceId must be a non-empty string" };
+  }
+  if (!isNonEmptyString(agentName)) {
+    return { ok: false, error: "payload.agentName must be a non-empty string" };
+  }
+  if (typeof platform !== "string" || !PLATFORM_SET.has(platform as Platform)) {
+    return { ok: false, error: "payload.platform must be one of: macos, windows, android" };
+  }
+  if (typeof statusText !== "string") {
+    return { ok: false, error: "payload.statusText must be a string" };
+  }
+  if (!isNonEmptyString(source)) {
+    return { ok: false, error: "payload.source must be a non-empty string" };
+  }
+
+  return {
+    ok: true,
+    data: {
+      ts,
+      deviceId,
+      agentName,
+      platform: platform as Platform,
+      statusText,
+      source,
+    },
+  };
+}
+
 export function parseAgentMessage(rawText: string): ParseResult<AgentIncomingMessage> {
   let parsedJson: unknown;
 
@@ -142,20 +192,35 @@ export function parseAgentMessage(rawText: string): ParseResult<AgentIncomingMes
     return { ok: false, error: "message must be a JSON object" };
   }
 
-  if (parsedJson.type !== "activity") {
-    return { ok: false, error: "message.type must be activity" };
+  if (parsedJson.type === "activity") {
+    const payloadResult = parseActivityEvent(parsedJson.payload);
+    if (!payloadResult.ok) {
+      return payloadResult;
+    }
+
+    return {
+      ok: true,
+      data: {
+        type: "activity",
+        payload: payloadResult.data,
+      },
+    };
   }
 
-  const payloadResult = parseActivityEvent(parsedJson.payload);
-  if (!payloadResult.ok) {
-    return payloadResult;
+  if (parsedJson.type === "status") {
+    const payloadResult = parseDeviceStatus(parsedJson.payload);
+    if (!payloadResult.ok) {
+      return payloadResult;
+    }
+
+    return {
+      ok: true,
+      data: {
+        type: "status",
+        payload: payloadResult.data,
+      },
+    };
   }
 
-  return {
-    ok: true,
-    data: {
-      type: "activity",
-      payload: payloadResult.data,
-    },
-  };
+  return { ok: false, error: "message.type must be activity or status" };
 }

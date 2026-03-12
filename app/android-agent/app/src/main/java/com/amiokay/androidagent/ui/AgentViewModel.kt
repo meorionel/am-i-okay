@@ -16,8 +16,10 @@ import kotlinx.coroutines.launch
 data class AgentUiState(
     val backendUrlInput: String = "",
     val agentNameInput: String = "",
+    val statusTextInput: String = "",
     val savedBackendUrl: String = "",
     val savedAgentName: String = "",
+    val savedStatusText: String = "",
     val isServiceRunning: Boolean = false,
     val connectionStatus: String = AgentConnectionState.DISCONNECTED.name,
     val lastError: String? = null,
@@ -34,10 +36,12 @@ class AgentViewModel(
 
     private var inputHydratedFromStorage = false
     private var agentNameInputHydratedFromStorage = false
+    private var statusTextInputHydratedFromStorage = false
 
     init {
         observeSavedBackendUrl()
         observeSavedAgentName()
+        observeSavedStatusText()
         observeRuntimeStatus()
     }
 
@@ -55,17 +59,33 @@ class AgentViewModel(
         )
     }
 
+    fun onStatusTextChanged(value: String) {
+        uiState = uiState.copy(
+            statusTextInput = value,
+            message = null
+        )
+    }
+
     fun onStartClicked() {
         val currentBackendUrl = uiState.backendUrlInput
         val currentAgentName = uiState.agentNameInput
+        val currentStatusText = uiState.statusTextInput
         viewModelScope.launch {
-            when (val result = agentController.startAgent(currentBackendUrl, currentAgentName)) {
+            when (
+                val result = agentController.startAgent(
+                    currentBackendUrl,
+                    currentAgentName,
+                    currentStatusText
+                )
+            ) {
                 is AgentStartResult.Started -> {
                     uiState = uiState.copy(
                         backendUrlInput = result.savedBackendUrl,
                         savedBackendUrl = result.savedBackendUrl,
                         agentNameInput = result.savedAgentName,
                         savedAgentName = result.savedAgentName,
+                        statusTextInput = result.savedStatusText,
+                        savedStatusText = result.savedStatusText,
                         message = "Agent started"
                     )
                 }
@@ -143,6 +163,22 @@ class AgentViewModel(
                     }
                 )
                 agentNameInputHydratedFromStorage = true
+            }
+        }
+    }
+
+    private fun observeSavedStatusText() {
+        viewModelScope.launch {
+            agentController.statusText.collect { storedStatusText ->
+                uiState = uiState.copy(
+                    savedStatusText = storedStatusText,
+                    statusTextInput = if (statusTextInputHydratedFromStorage) {
+                        uiState.statusTextInput
+                    } else {
+                        storedStatusText
+                    }
+                )
+                statusTextInputHydratedFromStorage = true
             }
         }
     }

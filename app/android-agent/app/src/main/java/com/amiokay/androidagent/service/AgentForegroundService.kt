@@ -56,6 +56,7 @@ class AgentForegroundService : Service() {
     private val webSocketClient = AgentWebSocketClient()
     private var backendWebSocketUrl: String? = null
     private var agentName: String = DEFAULT_AGENT_NAME
+    private var statusText: String = ""
     private var reportSequence: Long = 0
     private var lastReportedPackageName: String? = null
     private var usageAccessUnavailableLogged = false
@@ -173,8 +174,10 @@ class AgentForegroundService : Service() {
 
             agentName = configRepository.agentName.first().trim()
                 .ifBlank { DEFAULT_AGENT_NAME }
+            statusText = configRepository.statusText.first().trim()
             backendWebSocketUrl = toAgentWebSocketUrl(savedBackendUrl)
             AgentRuntimeState.appendLog("Using agent name: $agentName")
+            AgentRuntimeState.appendLog("Using status text: ${statusText.ifEmpty { "(empty)" }}")
             AgentRuntimeState.appendLog("Resolved backend websocket URL: ${backendWebSocketUrl ?: "invalid"}")
 
             while (isActive) {
@@ -191,7 +194,9 @@ class AgentForegroundService : Service() {
                 }
 
                 if (!webSocketClient.isConnected()) {
-                    webSocketClient.connect(targetUrl)
+                    webSocketClient.connect(targetUrl) {
+                        sendStatusPayload()
+                    }
                     delay(RECONNECT_DELAY_MS)
                 }
 
@@ -344,6 +349,34 @@ class AgentForegroundService : Service() {
                     )
                     put("windowTitle", windowTitle)
                     put("source", "usage-stats")
+                }
+            )
+        }.toString()
+    }
+
+    private fun sendStatusPayload() {
+        val sent = webSocketClient.send(buildStatusPayload())
+        if (sent) {
+            AgentRuntimeState.appendLog("Status payload reported")
+        } else {
+            AgentRuntimeState.appendLog("Status payload not sent because connection is not ready")
+        }
+    }
+
+    private fun buildStatusPayload(): String {
+        val deviceId = agentName.ifBlank { DEFAULT_AGENT_NAME }
+
+        return JSONObject().apply {
+            put("type", "status")
+            put(
+                "payload",
+                JSONObject().apply {
+                    put("ts", Instant.now().toString())
+                    put("deviceId", deviceId)
+                    put("agentName", agentName)
+                    put("platform", "android")
+                    put("statusText", statusText)
+                    put("source", "android-agent")
                 }
             )
         }.toString()

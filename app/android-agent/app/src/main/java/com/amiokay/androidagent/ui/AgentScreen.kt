@@ -65,6 +65,7 @@ fun AgentScreen(
     uiState: AgentUiState,
     onBackendUrlChanged: (String) -> Unit,
     onAgentNameChanged: (String) -> Unit,
+    onStatusTextChanged: (String) -> Unit,
     onStartClicked: () -> Unit,
     onStopClicked: () -> Unit,
     onClearLogsClicked: () -> Unit,
@@ -122,6 +123,12 @@ fun AgentScreen(
                         value = uiState.agentNameInput,
                         placeholder = "android-agent",
                         onValueChange = onAgentNameChanged
+                    )
+                    LabeledInputCard(
+                        label = "Status Text",
+                        value = uiState.statusTextInput,
+                        placeholder = "type something for the dashboard",
+                        onValueChange = onStatusTextChanged
                     )
                 }
             }

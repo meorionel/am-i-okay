@@ -21,6 +21,15 @@ export interface ActivityEvent {
   source: string;
 }
 
+export interface DeviceStatus {
+  ts: string;
+  deviceId: string;
+  agentName: string;
+  platform: Platform;
+  statusText: string;
+  source: string;
+}
+
 export interface RecentActivityItem {
   eventId: string;
   ts: string;
@@ -44,12 +53,18 @@ export interface AgentActivityMessage {
   payload: ActivityEvent;
 }
 
-export type AgentIncomingMessage = AgentActivityMessage;
+export interface AgentStatusMessage {
+  type: "status";
+  payload: DeviceStatus;
+}
+
+export type AgentIncomingMessage = AgentActivityMessage | AgentStatusMessage;
 
 export interface SnapshotMessage {
   type: "snapshot";
   payload: {
     devices: ActivityEvent[];
+    latestStatus: DeviceStatus | null;
     deviceSnapshots: DeviceActivitySnapshot[];
     recentActivities: RecentActivityItem[];
   };
@@ -58,6 +73,11 @@ export interface SnapshotMessage {
 export interface ActivityBroadcastMessage {
   type: "activity";
   payload: ActivityEvent;
+}
+
+export interface StatusBroadcastMessage {
+  type: "status";
+  payload: DeviceStatus;
 }
 
 export interface ErrorMessage {
@@ -70,6 +90,7 @@ export interface ErrorMessage {
 export type ServerToDashboardMessage =
   | SnapshotMessage
   | ActivityBroadcastMessage
+  | StatusBroadcastMessage
   | ErrorMessage;
 
 export type ClientRole = "agent" | "dashboard";

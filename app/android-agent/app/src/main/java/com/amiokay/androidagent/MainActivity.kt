@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
                         uiState = viewModel.uiState,
                         onBackendUrlChanged = viewModel::onBackendUrlChanged,
                         onAgentNameChanged = viewModel::onAgentNameChanged,
+                        onStatusTextChanged = viewModel::onStatusTextChanged,
                         onStartClicked = viewModel::onStartClicked,
                         onStopClicked = viewModel::onStopClicked,
                         onClearLogsClicked = viewModel::onClearLogsClicked,

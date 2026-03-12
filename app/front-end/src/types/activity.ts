@@ -17,6 +17,15 @@ export interface ActivityEvent {
 	source?: string;
 }
 
+export interface DeviceStatus {
+	ts: string;
+	deviceId: string;
+	agentName?: string;
+	platform: string;
+	statusText: string;
+	source?: string;
+}
+
 export interface RecentActivity {
 	eventId?: string;
 	ts: string;
@@ -33,10 +42,12 @@ export interface RecentActivity {
 
 export interface DashboardSnapshot {
 	devices: ActivityEvent[];
+	latestStatus: DeviceStatus | null;
 }
 
 export interface CurrentDevicesResponse {
 	devices: ActivityEvent[];
+	latestStatus: DeviceStatus | null;
 	recentActivities: RecentActivity[];
 }
 
@@ -44,7 +55,7 @@ export interface DashboardErrorPayload {
 	message: string;
 }
 
-export type DashboardMessage = { type: "snapshot"; payload: DashboardSnapshot } | { type: "activity"; payload: ActivityEvent } | { type: "error"; payload: DashboardErrorPayload };
+export type DashboardMessage = { type: "snapshot"; payload: DashboardSnapshot } | { type: "activity"; payload: ActivityEvent } | { type: "status"; payload: DeviceStatus } | { type: "error"; payload: DashboardErrorPayload };
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -58,6 +69,37 @@ function readString(value: unknown): string | null {
 
 function readNumber(value: unknown): number | undefined {
 	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+export function parseDeviceStatus(input: unknown): DeviceStatus | null {
+	if (!isRecord(input)) {
+		return null;
+	}
+
+	const ts = readString(input.ts);
+	const deviceId = readString(input.deviceId);
+	const agentName = readString(input.agentName);
+	const platform = readString(input.platform);
+	const statusText = readString(input.statusText);
+
+	if (!ts || !deviceId || !platform || statusText === null) {
+		return null;
+	}
+
+	const status: DeviceStatus = {
+		ts,
+		deviceId,
+		agentName: agentName ?? undefined,
+		platform,
+		statusText,
+	};
+
+	const source = readString(input.source);
+	if (source) {
+		status.source = source;
+	}
+
+	return status;
 }
 
 export function parseActivityEvent(input: unknown): ActivityEvent | null {
@@ -137,16 +179,17 @@ export function parseCurrentDevicesResponse(input: unknown): ActivityEvent[] {
 
 export function parseCurrentDashboardResponse(input: unknown): CurrentDevicesResponse {
 	if (!isRecord(input)) {
-		return { devices: [], recentActivities: [] };
+		return { devices: [], latestStatus: null, recentActivities: [] };
 	}
 
 	const devices = Array.isArray(input.devices) ? input.devices.map((item) => parseActivityEvent(item)).filter((event): event is ActivityEvent => event !== null) : [];
+	const latestStatus = parseDeviceStatus(input.latestStatus);
 
 	const recentActivities = Array.isArray(input.recentActivities)
 		? input.recentActivities.map((item) => parseRecentActivity(item)).filter((event): event is RecentActivity => event !== null)
 		: [];
 
-	return { devices, recentActivities };
+	return { devices, latestStatus, recentActivities };
 }
 
 export function parseRecentActivity(input: unknown): RecentActivity | null {
@@ -249,12 +292,13 @@ export function parseDashboardMessage(input: unknown): DashboardMessage | null {
 		}
 
 		const devices = input.payload.devices.map((item) => parseActivityEvent(item)).filter((event): event is ActivityEvent => event !== null);
+			const latestStatus = parseDeviceStatus(input.payload.latestStatus);
 
-		return {
-			type: "snapshot",
-			payload: { devices },
-		};
-	}
+			return {
+				type: "snapshot",
+				payload: { devices, latestStatus },
+			};
+		}
 
 	if (type === "activity") {
 		const event = parseActivityEvent(input.payload);
@@ -265,6 +309,18 @@ export function parseDashboardMessage(input: unknown): DashboardMessage | null {
 		return {
 			type: "activity",
 			payload: event,
+		};
+	}
+
+	if (type === "status") {
+		const status = parseDeviceStatus(input.payload);
+		if (!status) {
+			return null;
+		}
+
+		return {
+			type: "status",
+			payload: status,
 		};
 	}
 

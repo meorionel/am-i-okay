@@ -24,7 +24,7 @@ class AgentWebSocketClient {
     @Volatile
     private var targetUrl: String? = null
 
-    fun connect(url: String) {
+    fun connect(url: String, onOpen: (() -> Unit)? = null) {
         if (targetUrl == url && (connected || webSocket != null)) {
             return
         }
@@ -44,6 +44,7 @@ class AgentWebSocketClient {
                 connected = true
                 AgentRuntimeState.onConnected()
                 AgentRuntimeState.appendLog("WebSocket open: $url")
+                onOpen?.invoke()
                 Log.i(TAG, "Connected to backend: $url")
             }
 

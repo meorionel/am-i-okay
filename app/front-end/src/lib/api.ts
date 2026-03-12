@@ -25,7 +25,7 @@ export async function fetchCurrentDevices(): Promise<CurrentDevicesResponse> {
 
 		if (!response.ok) {
 			console.warn(`[api] fetchCurrentDevices failed with HTTP ${response.status}`);
-			return { devices: [], recentActivities: [] };
+			return { devices: [], latestStatus: null, recentActivities: [] };
 		}
 
 		let data: unknown;
@@ -34,12 +34,12 @@ export async function fetchCurrentDevices(): Promise<CurrentDevicesResponse> {
 			data = await response.json();
 		} catch (error) {
 			console.warn(`[api] failed to parse /api/current JSON: ${toErrorMessage(error)}`);
-			return { devices: [], recentActivities: [] };
+			return { devices: [], latestStatus: null, recentActivities: [] };
 		}
 
 		return parseCurrentDashboardResponse(data);
 	} catch (error) {
 		console.warn(`[api] failed to fetch /api/current at ${url}: ${toErrorMessage(error)}`);
-		return { devices: [], recentActivities: [] };
+		return { devices: [], latestStatus: null, recentActivities: [] };
 	}
 }

@@ -14,7 +14,8 @@ import kotlinx.coroutines.flow.Flow
 sealed interface AgentStartResult {
     data class Started(
         val savedBackendUrl: String,
-        val savedAgentName: String
+        val savedAgentName: String,
+        val savedStatusText: String
     ) : AgentStartResult
 
     data class Error(val reason: String) : AgentStartResult
@@ -27,11 +28,17 @@ class AgentController(
 
     val backendUrl: Flow<String> = configRepository.backendUrl
     val agentName: Flow<String> = configRepository.agentName
+    val statusText: Flow<String> = configRepository.statusText
     val runtimeStatus: Flow<AgentRuntimeStatus> = AgentRuntimeState.status
 
-    suspend fun startAgent(rawBackendUrl: String, rawAgentName: String): AgentStartResult {
+    suspend fun startAgent(
+        rawBackendUrl: String,
+        rawAgentName: String,
+        rawStatusText: String
+    ): AgentStartResult {
         val backendUrl = rawBackendUrl.trim()
         val agentName = rawAgentName.trim()
+        val statusText = rawStatusText.trim()
         if (backendUrl.isEmpty()) {
             return AgentStartResult.Error("Backend URL is required before starting the agent.")
         }
@@ -48,8 +55,10 @@ class AgentController(
 
         configRepository.saveBackendUrl(backendUrl)
         configRepository.saveAgentName(agentName)
+        configRepository.saveStatusText(statusText)
         AgentRuntimeState.appendLog("Saved backend URL: $backendUrl")
         AgentRuntimeState.appendLog("Saved agent name: $agentName")
+        AgentRuntimeState.appendLog("Saved status text: ${statusText.ifEmpty { "(empty)" }}")
 
         val startIntent = Intent(appContext, AgentForegroundService::class.java).apply {
             action = AgentForegroundService.ACTION_START
@@ -57,7 +66,7 @@ class AgentController(
         return runCatching {
             AgentRuntimeState.appendLog("Starting foreground service")
             ContextCompat.startForegroundService(appContext, startIntent)
-            AgentStartResult.Started(backendUrl, agentName)
+            AgentStartResult.Started(backendUrl, agentName, statusText)
         }.getOrElse { error ->
             val message = when {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&

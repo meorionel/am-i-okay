@@ -4,7 +4,7 @@ import { useEffect, useMemo, useReducer, useState } from "react";
 import { fetchCurrentDevices } from "@/src/lib/api";
 import { toEpochMs } from "@/src/lib/format";
 import { DashboardWebSocketClient, type ConnectionStatus } from "@/src/lib/ws";
-import type { ActivityEvent, RecentActivity } from "@/src/types/activity";
+import type { ActivityEvent, DeviceStatus, RecentActivity } from "@/src/types/activity";
 
 type DeviceState = Record<string, ActivityEvent>;
 
@@ -44,6 +44,18 @@ function deviceReducer(state: DeviceState, action: DeviceAction): DeviceState {
 	return replaceSnapshot(action.devices);
 }
 
+function shouldReplaceStatus(current: DeviceStatus | null, next: DeviceStatus | null): boolean {
+	if (next === null) {
+		return current === null;
+	}
+
+	if (current === null) {
+		return true;
+	}
+
+	return (toEpochMs(next.ts) ?? 0) >= (toEpochMs(current.ts) ?? 0);
+}
+
 function resolveLastEventAt(devices: ActivityEvent[]): number | null {
 	if (devices.length === 0) {
 		return null;
@@ -59,6 +71,7 @@ function toRecentActivity(event: ActivityEvent): RecentActivity {
 		eventId: event.eventId,
 		ts: event.ts,
 		deviceId: event.deviceId,
+		agentName: event.agentName,
 		platform: event.platform,
 		kind: event.kind,
 		app: {
@@ -81,11 +94,13 @@ function mergeRecentActivities(current: RecentActivity[], nextActivity: RecentAc
 
 export function useDashboardStream(): {
 	devices: ActivityEvent[];
+	latestStatus: DeviceStatus | null;
 	recentActivities: RecentActivity[];
 	connectionStatus: ConnectionStatus;
 	lastEventAt: number | null;
 } {
 	const [deviceState, dispatch] = useReducer(deviceReducer, {});
+	const [latestStatus, setLatestStatus] = useState<DeviceStatus | null>(null);
 	const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
 	const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
 	const [lastEventAt, setLastEventAt] = useState<number | null>(null);
@@ -112,6 +127,7 @@ export function useDashboardStream(): {
 			}
 
 			safeDispatch({ type: "replace", devices: dashboard.devices });
+			setLatestStatus(dashboard.latestStatus);
 			setRecentActivities(dashboard.recentActivities);
 			safeSetLastEventAt(resolveLastEventAt(dashboard.devices));
 		};
@@ -124,8 +140,11 @@ export function useDashboardStream(): {
 					setConnectionStatus(status);
 				}
 			},
-			onSnapshot: (devices) => {
+			onSnapshot: (devices, nextLatestStatus) => {
 				safeDispatch({ type: "replace", devices });
+				if (isActive) {
+					setLatestStatus(nextLatestStatus);
+				}
 				safeSetLastEventAt(resolveLastEventAt(devices) ?? Date.now());
 			},
 			onActivity: (event) => {
@@ -134,6 +153,13 @@ export function useDashboardStream(): {
 					setRecentActivities((current) => mergeRecentActivities(current, toRecentActivity(event)));
 				}
 				safeSetLastEventAt(eventTsMs(event) || Date.now());
+			},
+			onStatus: (status) => {
+				if (isActive) {
+					setLatestStatus((current) => {
+						return shouldReplaceStatus(current, status) ? status : current;
+					});
+				}
 			},
 			onError: (message) => {
 				console.warn("[ws]", message);
@@ -152,6 +178,7 @@ export function useDashboardStream(): {
 
 	return {
 		devices,
+		latestStatus,
 		recentActivities,
 		connectionStatus,
 		lastEventAt,

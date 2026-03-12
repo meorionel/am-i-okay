@@ -7,6 +7,7 @@ import type {
   ErrorMessage,
   ServerToDashboardMessage,
   SnapshotMessage,
+  StatusBroadcastMessage,
   WsClientData,
 } from "./types";
 import { serializeMessage, toText } from "./utils";
@@ -57,12 +58,23 @@ export class WebSocketHub {
       return;
     }
 
-    const event = parsed.data.payload;
-    this.trackAgentDevice(ws, event.deviceId);
-    this.store.upsert(event);
-    this.broadcastActivity(event);
+    if (parsed.data.type === "activity") {
+      const event = parsed.data.payload;
+      this.trackAgentDevice(ws, event.deviceId);
+      this.store.upsert(event);
+      this.broadcastActivity(event);
+      console.log(
+        `[ws] activity forwarded device=${event.deviceId} app=${event.app.name} eventId=${event.eventId}`,
+      );
+      return;
+    }
+
+    const status = parsed.data.payload;
+    this.trackAgentDevice(ws, status.deviceId);
+    this.store.upsertStatus(status);
+    this.broadcastStatus(status);
     console.log(
-      `[ws] activity forwarded device=${event.deviceId} app=${event.app.name} eventId=${event.eventId}`,
+      `[ws] status forwarded device=${status.deviceId} text=${JSON.stringify(status.statusText)}`,
     );
   }
 
@@ -101,6 +113,7 @@ export class WebSocketHub {
       type: "snapshot",
       payload: {
         devices: this.store.getAll(),
+        latestStatus: this.store.getLatestStatus(),
         deviceSnapshots: this.store.getDeviceSnapshots(),
         recentActivities: this.store.getRecentActivities(),
       },
@@ -113,6 +126,15 @@ export class WebSocketHub {
     const message: ActivityBroadcastMessage = {
       type: "activity",
       payload: event,
+    };
+
+    this.broadcastToDashboards(message);
+  }
+
+  private broadcastStatus(status: import("./types").DeviceStatus): void {
+    const message: StatusBroadcastMessage = {
+      type: "status",
+      payload: status,
     };
 
     this.broadcastToDashboards(message);

@@ -1,12 +1,13 @@
 import { getDashboardWsUrl } from "@/src/lib/env";
-import { parseDashboardMessage, type ActivityEvent } from "@/src/types/activity";
+import { parseDashboardMessage, type ActivityEvent, type DeviceStatus } from "@/src/types/activity";
 
 export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "error";
 
 interface DashboardWebSocketHandlers {
 	onStatusChange?: (status: ConnectionStatus) => void;
-	onSnapshot?: (devices: ActivityEvent[]) => void;
+	onSnapshot?: (devices: ActivityEvent[], latestStatus: DeviceStatus | null) => void;
 	onActivity?: (event: ActivityEvent) => void;
+	onStatus?: (status: DeviceStatus) => void;
 	onError?: (message: string) => void;
 }
 
@@ -104,12 +105,17 @@ export class DashboardWebSocketClient {
 		}
 
 		if (message.type === "snapshot") {
-			this.handlers.onSnapshot?.(message.payload.devices);
+			this.handlers.onSnapshot?.(message.payload.devices, message.payload.latestStatus);
 			return;
 		}
 
 		if (message.type === "activity") {
 			this.handlers.onActivity?.(message.payload);
+			return;
+		}
+
+		if (message.type === "status") {
+			this.handlers.onStatus?.(message.payload);
 			return;
 		}
 
