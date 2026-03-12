@@ -6,6 +6,7 @@
 ## 2. 当前 MVP 功能
 - 单页面 Compose UI
 - 输入并保存 `backendUrl`（DataStore）
+- 输入并保存 `agentName`（DataStore）
 - `Start Agent` 按钮：校验 URL（`trim` 后非空，且需 `http://`、`https://`、`ws://` 或 `wss://` 开头）
 - `Stop Agent` 按钮：停止服务
 - Foreground Service 常驻运行
@@ -19,6 +20,7 @@
   - 服务是否运行
   - WebSocket 连接状态
   - 当前已保存的后端 URL
+  - 当前已保存的 agent 名称
 - 预留 `ActivityMonitor` 扩展点（TODO）
 
 ## 3. 如何运行
@@ -37,15 +39,16 @@ cd app/android-agent
 
 ## 4. 启动按钮逻辑
 `Start Agent` 点击流程：
-1. 读取输入框 URL
+1. 读取输入框 URL 和 agent 名称
 2. 执行 `trim()`
-3. 校验是否为空
-4. 校验是否以 `http://`、`https://`、`ws://` 或 `wss://` 开头
+3. 校验 URL 与 agent 名称都不为空
+4. 校验 URL 是否以 `http://`、`https://`、`ws://` 或 `wss://` 开头
 5. 校验通过后保存到 DataStore
 6. 发送 `ACTION_START` 启动前台服务
 7. 服务读取已保存 URL 并连接 `/ws/agent`
-8. 辅助功能服务捕获前台窗口变化
-9. 前台服务仅在检测到应用变化时上报一次
+8. 服务读取已保存 agent 名称，并在 activity payload 中携带 `agentName`
+9. 辅助功能服务捕获前台窗口变化
+10. 前台服务仅在检测到应用变化时上报一次
 
 如果校验失败：
 - 不启动服务

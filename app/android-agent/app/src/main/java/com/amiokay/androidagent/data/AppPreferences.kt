@@ -10,4 +10,5 @@ val Context.dataStore by preferencesDataStore(name = DATASTORE_NAME)
 
 object AppPreferences {
     val BackendUrl = stringPreferencesKey("backend_url")
+    val AgentName = stringPreferencesKey("agent_name")
 }

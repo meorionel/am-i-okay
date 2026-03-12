@@ -25,6 +25,7 @@ export interface RecentActivityItem {
   eventId: string;
   ts: string;
   deviceId: string;
+  agentName: string;
   platform: Platform;
   app: ActivityApp;
   windowTitle?: string;

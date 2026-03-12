@@ -13,9 +13,19 @@ class AgentConfigRepository(
         preferences[AppPreferences.BackendUrl].orEmpty()
     }
 
+    val agentName: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[AppPreferences.AgentName].orEmpty()
+    }
+
     suspend fun saveBackendUrl(url: String) {
         context.dataStore.edit { preferences ->
             preferences[AppPreferences.BackendUrl] = url
+        }
+    }
+
+    suspend fun saveAgentName(name: String) {
+        context.dataStore.edit { preferences ->
+            preferences[AppPreferences.AgentName] = name
         }
     }
 }

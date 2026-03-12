@@ -21,6 +21,7 @@ function toRecentActivityItem(event: ActivityEvent): RecentActivityItem {
     eventId: event.eventId,
     ts: event.ts,
     deviceId: event.deviceId,
+    agentName: event.agentName,
     platform: event.platform,
     app: event.app,
     windowTitle: event.windowTitle,

@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
                     AgentScreen(
                         uiState = viewModel.uiState,
                         onBackendUrlChanged = viewModel::onBackendUrlChanged,
+                        onAgentNameChanged = viewModel::onAgentNameChanged,
                         onStartClicked = viewModel::onStartClicked,
                         onStopClicked = viewModel::onStopClicked,
                         onOpenAccessibilitySettings = ::openAccessibilitySettings,

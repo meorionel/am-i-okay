@@ -15,7 +15,9 @@ import kotlinx.coroutines.launch
 
 data class AgentUiState(
     val backendUrlInput: String = "",
+    val agentNameInput: String = "",
     val savedBackendUrl: String = "",
+    val savedAgentName: String = "",
     val isServiceRunning: Boolean = false,
     val connectionStatus: String = AgentConnectionState.DISCONNECTED.name,
     val lastError: String? = null,
@@ -31,9 +33,11 @@ class AgentViewModel(
         private set
 
     private var inputHydratedFromStorage = false
+    private var agentNameInputHydratedFromStorage = false
 
     init {
         observeSavedBackendUrl()
+        observeSavedAgentName()
         observeRuntimeStatus()
     }
 
@@ -44,14 +48,24 @@ class AgentViewModel(
         )
     }
 
+    fun onAgentNameChanged(value: String) {
+        uiState = uiState.copy(
+            agentNameInput = value,
+            message = null
+        )
+    }
+
     fun onStartClicked() {
-        val currentInput = uiState.backendUrlInput
+        val currentBackendUrl = uiState.backendUrlInput
+        val currentAgentName = uiState.agentNameInput
         viewModelScope.launch {
-            when (val result = agentController.startAgent(currentInput)) {
+            when (val result = agentController.startAgent(currentBackendUrl, currentAgentName)) {
                 is AgentStartResult.Started -> {
                     uiState = uiState.copy(
                         backendUrlInput = result.savedBackendUrl,
                         savedBackendUrl = result.savedBackendUrl,
+                        agentNameInput = result.savedAgentName,
+                        savedAgentName = result.savedAgentName,
                         message = "Agent started"
                     )
                 }
@@ -109,6 +123,22 @@ class AgentViewModel(
                     }
                 )
                 inputHydratedFromStorage = true
+            }
+        }
+    }
+
+    private fun observeSavedAgentName() {
+        viewModelScope.launch {
+            agentController.agentName.collect { storedAgentName ->
+                uiState = uiState.copy(
+                    savedAgentName = storedAgentName,
+                    agentNameInput = if (agentNameInputHydratedFromStorage) {
+                        uiState.agentNameInput
+                    } else {
+                        storedAgentName
+                    }
+                )
+                agentNameInputHydratedFromStorage = true
             }
         }
     }

@@ -31,6 +31,7 @@ import com.amiokay.androidagent.service.AgentLogLevel
 fun AgentScreen(
     uiState: AgentUiState,
     onBackendUrlChanged: (String) -> Unit,
+    onAgentNameChanged: (String) -> Unit,
     onStartClicked: () -> Unit,
     onStopClicked: () -> Unit,
     onOpenAccessibilitySettings: () -> Unit,
@@ -65,6 +66,15 @@ fun AgentScreen(
                 singleLine = true
             )
 
+            OutlinedTextField(
+                value = uiState.agentNameInput,
+                onValueChange = onAgentNameChanged,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(text = "Agent Name") },
+                placeholder = { Text(text = "android-agent") },
+                singleLine = true
+            )
+
             Button(
                 onClick = onStartClicked,
                 modifier = Modifier.fillMaxWidth()
@@ -96,6 +106,10 @@ fun AgentScreen(
 
             Text(
                 text = "Saved backend URL: ${uiState.savedBackendUrl.ifBlank { "Not set" }}"
+            )
+
+            Text(
+                text = "Saved agent name: ${uiState.savedAgentName.ifBlank { "Not set" }}"
             )
 
             uiState.lastError?.let { lastError ->

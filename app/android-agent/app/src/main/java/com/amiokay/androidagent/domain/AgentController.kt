@@ -12,7 +12,11 @@ import com.amiokay.androidagent.service.AgentRuntimeStatus
 import kotlinx.coroutines.flow.Flow
 
 sealed interface AgentStartResult {
-    data class Started(val savedBackendUrl: String) : AgentStartResult
+    data class Started(
+        val savedBackendUrl: String,
+        val savedAgentName: String
+    ) : AgentStartResult
+
     data class Error(val reason: String) : AgentStartResult
 }
 
@@ -22,12 +26,17 @@ class AgentController(
 ) {
 
     val backendUrl: Flow<String> = configRepository.backendUrl
+    val agentName: Flow<String> = configRepository.agentName
     val runtimeStatus: Flow<AgentRuntimeStatus> = AgentRuntimeState.status
 
-    suspend fun startAgent(rawBackendUrl: String): AgentStartResult {
+    suspend fun startAgent(rawBackendUrl: String, rawAgentName: String): AgentStartResult {
         val backendUrl = rawBackendUrl.trim()
+        val agentName = rawAgentName.trim()
         if (backendUrl.isEmpty()) {
             return AgentStartResult.Error("Backend URL is required before starting the agent.")
+        }
+        if (agentName.isEmpty()) {
+            return AgentStartResult.Error("Agent name is required before starting the agent.")
         }
 
         val supportedSchemes = listOf("http://", "https://", "ws://", "wss://")
@@ -38,7 +47,9 @@ class AgentController(
         }
 
         configRepository.saveBackendUrl(backendUrl)
+        configRepository.saveAgentName(agentName)
         AgentRuntimeState.appendLog("Saved backend URL: $backendUrl")
+        AgentRuntimeState.appendLog("Saved agent name: $agentName")
 
         val startIntent = Intent(appContext, AgentForegroundService::class.java).apply {
             action = AgentForegroundService.ACTION_START
@@ -46,7 +57,7 @@ class AgentController(
         return runCatching {
             AgentRuntimeState.appendLog("Starting foreground service")
             ContextCompat.startForegroundService(appContext, startIntent)
-            AgentStartResult.Started(backendUrl)
+            AgentStartResult.Started(backendUrl, agentName)
         }.getOrElse { error ->
             val message = when {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&

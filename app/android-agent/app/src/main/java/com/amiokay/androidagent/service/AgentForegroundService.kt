@@ -13,7 +13,6 @@ import android.os.Build.VERSION.SDK_INT
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
-import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -56,6 +55,7 @@ class AgentForegroundService : Service() {
     private lateinit var configRepository: AgentConfigRepository
     private val webSocketClient = AgentWebSocketClient()
     private var backendWebSocketUrl: String? = null
+    private var agentName: String = DEFAULT_AGENT_NAME
     private var reportSequence: Long = 0
     private var lastReportedPackageName: String? = null
     private var usageAccessUnavailableLogged = false
@@ -171,7 +171,10 @@ class AgentForegroundService : Service() {
                 return@launch
             }
 
+            agentName = configRepository.agentName.first().trim()
+                .ifBlank { DEFAULT_AGENT_NAME }
             backendWebSocketUrl = toAgentWebSocketUrl(savedBackendUrl)
+            AgentRuntimeState.appendLog("Using agent name: $agentName")
             AgentRuntimeState.appendLog("Resolved backend websocket URL: ${backendWebSocketUrl ?: "invalid"}")
 
             while (isActive) {
@@ -314,9 +317,7 @@ class AgentForegroundService : Service() {
         foregroundApp: com.amiokay.androidagent.monitor.ForegroundAppInfo,
         sequence: Long
     ): String {
-        val deviceId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
-            ?.takeIf { it.isNotBlank() }
-            ?: "unknown-android-device"
+        val deviceId = agentName.ifBlank { DEFAULT_AGENT_NAME }
         val now = Instant.now().toString()
         val packageName = foregroundApp.packageName
         val appTitle = foregroundApp.appName
@@ -330,6 +331,7 @@ class AgentForegroundService : Service() {
                     put("eventId", UUID.randomUUID().toString())
                     put("ts", now)
                     put("deviceId", deviceId)
+                    put("agentName", agentName)
                     put("platform", "android")
                     put("kind", "foreground_changed")
                     put(
@@ -352,6 +354,7 @@ class AgentForegroundService : Service() {
         const val ACTION_STOP = "com.amiokay.androidagent.action.STOP"
 
         private const val TAG = "AgentForegroundService"
+        private const val DEFAULT_AGENT_NAME = "android-agent"
         private const val NOTIFICATION_CHANNEL_ID = "activity_agent_channel"
         private const val NOTIFICATION_ID = 1001
         private const val SAMPLE_INTERVAL_MS = 1_000L
