@@ -7,7 +7,7 @@ import {
   DashboardWebSocketClient,
   type ConnectionStatus,
 } from "@/src/lib/ws";
-import type { ActivityEvent } from "@/src/types/activity";
+import type { ActivityEvent, RecentActivity } from "@/src/types/activity";
 
 type DeviceState = Record<string, ActivityEvent>;
 
@@ -62,12 +62,46 @@ function resolveLastEventAt(devices: ActivityEvent[]): number | null {
     .reduce((max, value) => (value > max ? value : max), 0);
 }
 
+const MAX_RECENT_ACTIVITIES = 10;
+
+function toRecentActivity(event: ActivityEvent): RecentActivity {
+  return {
+    eventId: event.eventId,
+    ts: event.ts,
+    deviceId: event.deviceId,
+    platform: event.platform,
+    kind: event.kind,
+    app: {
+      ...event.app,
+    },
+    windowTitle: event.windowTitle,
+    source: event.source,
+  };
+}
+
+function mergeRecentActivities(
+  current: RecentActivity[],
+  nextActivity: RecentActivity,
+): RecentActivity[] {
+  const nextKey = nextActivity.eventId ?? `${nextActivity.deviceId}-${nextActivity.ts}`;
+  const deduped = current.filter((activity) => {
+    const key = activity.eventId ?? `${activity.deviceId}-${activity.ts}`;
+    return key !== nextKey;
+  });
+
+  return [nextActivity, ...deduped]
+    .sort((a, b) => (toEpochMs(b.ts) ?? 0) - (toEpochMs(a.ts) ?? 0))
+    .slice(0, MAX_RECENT_ACTIVITIES);
+}
+
 export function useDashboardStream(): {
   devices: ActivityEvent[];
+  recentActivities: RecentActivity[];
   connectionStatus: ConnectionStatus;
   lastEventAt: number | null;
 } {
   const [deviceState, dispatch] = useReducer(deviceReducer, {});
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("connecting");
   const [lastEventAt, setLastEventAt] = useState<number | null>(null);
@@ -88,13 +122,14 @@ export function useDashboardStream(): {
     };
 
     const bootstrap = async (): Promise<void> => {
-      const devices = await fetchCurrentDevices();
+      const dashboard = await fetchCurrentDevices();
       if (!isActive) {
         return;
       }
 
-      safeDispatch({ type: "replace", devices });
-      safeSetLastEventAt(resolveLastEventAt(devices));
+      safeDispatch({ type: "replace", devices: dashboard.devices });
+      setRecentActivities(dashboard.recentActivities);
+      safeSetLastEventAt(resolveLastEventAt(dashboard.devices));
     };
 
     void bootstrap();
@@ -111,6 +146,11 @@ export function useDashboardStream(): {
       },
       onActivity: (event) => {
         safeDispatch({ type: "upsert", event });
+        if (isActive) {
+          setRecentActivities((current) =>
+            mergeRecentActivities(current, toRecentActivity(event)),
+          );
+        }
         safeSetLastEventAt(eventTsMs(event) || Date.now());
       },
       onError: (message) => {
@@ -130,6 +170,7 @@ export function useDashboardStream(): {
 
   return {
     devices,
+    recentActivities,
     connectionStatus,
     lastEventAt,
   };

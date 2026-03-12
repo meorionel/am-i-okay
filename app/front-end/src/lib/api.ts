@@ -1,7 +1,7 @@
 import { getApiBaseUrl } from "@/src/lib/env";
 import {
-  parseCurrentDevicesResponse,
-  type ActivityEvent,
+  parseCurrentDashboardResponse,
+  type CurrentDevicesResponse,
 } from "@/src/types/activity";
 
 const CURRENT_DEVICES_PATH = "/api/current";
@@ -14,7 +14,7 @@ function toErrorMessage(error: unknown): string {
   return String(error);
 }
 
-export async function fetchCurrentDevices(): Promise<ActivityEvent[]> {
+export async function fetchCurrentDevices(): Promise<CurrentDevicesResponse> {
   const url = `${getApiBaseUrl()}${CURRENT_DEVICES_PATH}`;
 
   try {
@@ -30,7 +30,7 @@ export async function fetchCurrentDevices(): Promise<ActivityEvent[]> {
       console.warn(
         `[api] fetchCurrentDevices failed with HTTP ${response.status}`,
       );
-      return [];
+      return { devices: [], recentActivities: [] };
     }
 
     let data: unknown;
@@ -41,14 +41,14 @@ export async function fetchCurrentDevices(): Promise<ActivityEvent[]> {
       console.warn(
         `[api] failed to parse /api/current JSON: ${toErrorMessage(error)}`,
       );
-      return [];
+      return { devices: [], recentActivities: [] };
     }
 
-    return parseCurrentDevicesResponse(data);
+    return parseCurrentDashboardResponse(data);
   } catch (error) {
     console.warn(
       `[api] failed to fetch /api/current at ${url}: ${toErrorMessage(error)}`,
     );
-    return [];
+    return { devices: [], recentActivities: [] };
   }
 }
