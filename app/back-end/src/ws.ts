@@ -16,12 +16,17 @@ type WsMessage = string | Uint8Array | ArrayBuffer;
 export class WebSocketHub {
   private readonly agents = new Set<ServerWebSocket<WsClientData>>();
   private readonly dashboards = new Set<ServerWebSocket<WsClientData>>();
+  private readonly deviceIdsByAgent = new Map<
+    ServerWebSocket<WsClientData>,
+    Set<string>
+  >();
 
   constructor(private readonly store: ActivityStore) {}
 
   handleOpen(ws: ServerWebSocket<WsClientData>): void {
     if (ws.data.role === "agent") {
       this.agents.add(ws);
+      this.deviceIdsByAgent.set(ws, new Set());
       console.log(`[ws] agent connected: ${ws.data.connectionId}`);
       return;
     }
@@ -53,6 +58,7 @@ export class WebSocketHub {
     }
 
     const event = parsed.data.payload;
+    this.trackAgentDevice(ws, event.deviceId);
     this.store.upsert(event);
     this.broadcastActivity(event);
     console.log(
@@ -67,6 +73,11 @@ export class WebSocketHub {
   ): void {
     if (ws.data.role === "agent") {
       this.agents.delete(ws);
+      const deviceIds = this.deviceIdsByAgent.get(ws);
+      this.deviceIdsByAgent.delete(ws);
+      if (deviceIds && this.store.removeByDeviceIds(deviceIds)) {
+        this.broadcastSnapshot();
+      }
     } else {
       this.dashboards.delete(ws);
     }
@@ -77,13 +88,23 @@ export class WebSocketHub {
   }
 
   private sendSnapshot(ws: ServerWebSocket<WsClientData>): void {
+    const message = this.createSnapshotMessage();
+    this.safeSend(ws, message);
+  }
+
+  private broadcastSnapshot(): void {
+    this.broadcastToDashboards(this.createSnapshotMessage());
+  }
+
+  private createSnapshotMessage(): SnapshotMessage {
     const message: SnapshotMessage = {
       type: "snapshot",
       payload: {
         devices: this.store.getAll(),
       },
     };
-    this.safeSend(ws, message);
+
+    return message;
   }
 
   private broadcastActivity(event: ActivityEvent): void {
@@ -125,5 +146,18 @@ export class WebSocketHub {
     } catch (error) {
       console.error("[ws] failed to send websocket message", error);
     }
+  }
+
+  private trackAgentDevice(
+    ws: ServerWebSocket<WsClientData>,
+    deviceId: string,
+  ): void {
+    const knownDeviceIds = this.deviceIdsByAgent.get(ws);
+    if (knownDeviceIds) {
+      knownDeviceIds.add(deviceId);
+      return;
+    }
+
+    this.deviceIdsByAgent.set(ws, new Set([deviceId]));
   }
 }

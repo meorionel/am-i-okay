@@ -16,4 +16,14 @@ export class ActivityStore {
   getByDeviceId(deviceId: string): ActivityEvent | undefined {
     return this.latestByDevice.get(deviceId);
   }
+
+  removeByDeviceIds(deviceIds: Iterable<string>): boolean {
+    let changed = false;
+
+    for (const deviceId of deviceIds) {
+      changed = this.latestByDevice.delete(deviceId) || changed;
+    }
+
+    return changed;
+  }
 }
