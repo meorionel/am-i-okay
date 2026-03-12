@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Android Agent</string>
+    <string name="notification_channel_name">Agent Service</string>
+    <string name="notification_channel_description">Foreground service for activity monitoring</string>
+    <string name="notification_title">Activity Agent Running</string>
+    <string name="notification_text">Monitoring app activity in background</string>
+    <string name="accessibility_service_label">Android Agent Accessibility</string>
+    <string name="accessibility_service_description">Tracks the current foreground app for Android Agent reporting.</string>
+    <string name="accessibility_service_summary">Required to detect foreground app changes reliably.</string>
+</resources>
