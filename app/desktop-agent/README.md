@@ -25,8 +25,12 @@
   - 作为启动交互的默认值
   - 默认值：`ws://127.0.0.1:3000/ws/agent`
 - `AGENT_DEVICE_ID`
+  - 作为启动交互中“当前设备名称”的默认值
   - 未提供时自动使用主机名
   - 若主机名不可用，按平台回退为 `macos-agent` / `windows-agent`
+- `AGENT_NAME`
+  - 可覆盖上报消息中的 `agentName`
+  - 默认值：`desktop-agent`
 
 ## 运行
 
@@ -35,7 +39,7 @@ cd app/desktop-agent
 cargo run
 ```
 
-启动后会要求输入后端地址，支持以下形式：
+启动后会要求输入后端地址和当前设备名称，后端地址支持以下形式：
 
 - `ws://127.0.0.1:3000`
 - `wss://example.com`
@@ -55,6 +59,7 @@ Agent 发送到后端的消息结构：
     "eventId": "uuid",
     "ts": "2026-03-11T10:00:00.000Z",
     "deviceId": "my-mac",
+    "agentName": "desktop-agent",
     "platform": "windows",
     "kind": "foreground_changed",
     "app": {

@@ -9,6 +9,7 @@ export interface ActivityEvent {
 	eventId?: string;
 	ts: string;
 	deviceId: string;
+	agentName?: string;
 	platform: string;
 	kind: string;
 	app: AppInfo;
@@ -20,6 +21,7 @@ export interface RecentActivity {
 	eventId?: string;
 	ts: string;
 	deviceId: string;
+	agentName?: string;
 	platform: string;
 	app: AppInfo;
 	kind?: string;
@@ -65,6 +67,7 @@ export function parseActivityEvent(input: unknown): ActivityEvent | null {
 
 	const ts = readString(input.ts);
 	const deviceId = readString(input.deviceId);
+	const agentName = readString(input.agentName);
 	const platform = readString(input.platform);
 	const kind = readString(input.kind);
 	const appRaw = isRecord(input.app) ? input.app : null;
@@ -83,6 +86,7 @@ export function parseActivityEvent(input: unknown): ActivityEvent | null {
 	const event: ActivityEvent = {
 		ts,
 		deviceId,
+		agentName: agentName ?? undefined,
 		platform,
 		kind,
 		app: {
@@ -152,6 +156,7 @@ export function parseRecentActivity(input: unknown): RecentActivity | null {
 
 	const ts = readString(input.ts);
 	const deviceId = readString(input.deviceId);
+	const agentName = readString(input.agentName);
 	const platform = readString(input.platform);
 	const appRaw = isRecord(input.app) ? input.app : null;
 
@@ -169,6 +174,7 @@ export function parseRecentActivity(input: unknown): RecentActivity | null {
 	const activity: RecentActivity = {
 		ts,
 		deviceId,
+		agentName: agentName ?? undefined,
 		platform,
 		app: {
 			id: appId,

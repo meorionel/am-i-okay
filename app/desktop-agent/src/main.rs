@@ -30,6 +30,7 @@ async fn main() -> Result<()> {
     info!(
         server_ws_url = %cfg.server_ws_url,
         device_id = %cfg.device_id,
+        agent_name = %cfg.agent_name,
         "agent starting"
     );
 
@@ -37,6 +38,6 @@ async fn main() -> Result<()> {
 
     let _transport_task = tokio::spawn(transport::run_transport(cfg.server_ws_url.clone(), rx));
 
-    platform::run_foreground_watcher(cfg.device_id.clone(), tx)?;
+    platform::run_foreground_watcher(cfg.device_id.clone(), cfg.agent_name.clone(), tx)?;
     Ok(())
 }

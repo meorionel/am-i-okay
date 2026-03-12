@@ -22,12 +22,17 @@ struct LastApp {
 
 pub fn run_foreground_watcher(
     device_id: String,
+    agent_name: String,
     tx: mpsc::UnboundedSender<ActivityEnvelope>,
 ) -> Result<()> {
-    run_watcher(device_id, tx)
+    run_watcher(device_id, agent_name, tx)
 }
 
-fn run_watcher(device_id: String, tx: mpsc::UnboundedSender<ActivityEnvelope>) -> Result<()> {
+fn run_watcher(
+    device_id: String,
+    agent_name: String,
+    tx: mpsc::UnboundedSender<ActivityEnvelope>,
+) -> Result<()> {
     let last_app = Arc::new(Mutex::new(None::<LastApp>));
     let last_read_error_at = Arc::new(Mutex::new(None::<Instant>));
 
@@ -35,15 +40,17 @@ fn run_watcher(device_id: String, tx: mpsc::UnboundedSender<ActivityEnvelope>) -
         let workspace = NSWorkspace::sharedWorkspace();
         let notification_center = workspace.notificationCenter();
 
-        emit_frontmost_event(&device_id, &tx, &last_app, &last_read_error_at);
+        emit_frontmost_event(&device_id, &agent_name, &tx, &last_app, &last_read_error_at);
 
         let block_device_id = device_id.clone();
+        let block_agent_name = agent_name.clone();
         let block_tx = tx.clone();
         let block_last_app = Arc::clone(&last_app);
         let block_last_read_error_at = Arc::clone(&last_read_error_at);
         let observer = RcBlock::new(move |_notification: NonNull<NSNotification>| {
             emit_frontmost_event(
                 &block_device_id,
+                &block_agent_name,
                 &block_tx,
                 &block_last_app,
                 &block_last_read_error_at,
@@ -67,13 +74,14 @@ fn run_watcher(device_id: String, tx: mpsc::UnboundedSender<ActivityEnvelope>) -
             let mode = unsafe { NSDefaultRunLoopMode };
             let _ = run_loop.runMode_beforeDate(mode, &until);
             // Fallback polling covers cases where macOS notification delivery is unreliable.
-            emit_frontmost_event(&device_id, &tx, &last_app, &last_read_error_at);
+            emit_frontmost_event(&device_id, &agent_name, &tx, &last_app, &last_read_error_at);
         }
     })
 }
 
 fn emit_frontmost_event(
     device_id: &str,
+    agent_name: &str,
     tx: &mpsc::UnboundedSender<ActivityEnvelope>,
     last_app: &Arc<Mutex<Option<LastApp>>>,
     last_read_error_at: &Arc<Mutex<Option<Instant>>>,
@@ -114,8 +122,14 @@ fn emit_frontmost_event(
         "foreground app changed"
     );
 
-    let event =
-        ActivityEnvelope::foreground_changed(device_id, "macos", "nsworkspace", app_info, None);
+    let event = ActivityEnvelope::foreground_changed(
+        device_id,
+        agent_name,
+        "macos",
+        "nsworkspace",
+        app_info,
+        None,
+    );
     if let Err(err) = tx.send(event) {
         warn!(error = %err, "event channel closed, dropping event");
     }

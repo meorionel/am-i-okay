@@ -13,6 +13,7 @@ export interface ActivityEvent {
   eventId: string;
   ts: string;
   deviceId: string;
+  agentName: string;
   platform: Platform;
   kind: ActivityKind;
   app: ActivityApp;

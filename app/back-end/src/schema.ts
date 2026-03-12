@@ -69,6 +69,7 @@ export function parseActivityEvent(input: unknown): ParseResult<ActivityEvent> {
   const eventId = pickValue(input, "eventId", "event_id");
   const ts = input.ts;
   const deviceId = pickValue(input, "deviceId", "device_id");
+  const agentName = pickValue(input, "agentName", "agent_name");
   const platform = input.platform;
   const kind = input.kind;
   const app = input.app;
@@ -83,6 +84,9 @@ export function parseActivityEvent(input: unknown): ParseResult<ActivityEvent> {
   }
   if (!isNonEmptyString(deviceId)) {
     return { ok: false, error: "payload.deviceId must be a non-empty string" };
+  }
+  if (!isNonEmptyString(agentName)) {
+    return { ok: false, error: "payload.agentName must be a non-empty string" };
   }
   if (typeof platform !== "string" || !PLATFORM_SET.has(platform as Platform)) {
     return { ok: false, error: "payload.platform must be one of: macos, windows, android" };
@@ -115,6 +119,7 @@ export function parseActivityEvent(input: unknown): ParseResult<ActivityEvent> {
       eventId,
       ts,
       deviceId,
+      agentName,
       platform: platform as Platform,
       kind: "foreground_changed",
       app: appResult.data,

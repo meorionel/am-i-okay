@@ -2,6 +2,8 @@ use std::env;
 use std::io::{self, Write};
 use tracing::warn;
 
+pub const DESKTOP_AGENT_NAME: &str = "desktop-agent";
+
 #[cfg(target_os = "macos")]
 const DEFAULT_DEVICE_ID: &str = "macos-agent";
 #[cfg(target_os = "windows")]
@@ -13,6 +15,7 @@ const DEFAULT_DEVICE_ID: &str = "desktop-agent";
 pub struct Config {
     pub server_ws_url: String,
     pub device_id: String,
+    pub agent_name: String,
 }
 
 impl Config {
@@ -21,17 +24,19 @@ impl Config {
             .unwrap_or_else(|_| "ws://127.0.0.1:3000/ws/agent".to_string());
         let server_ws_url = prompt_server_ws_url(&default_server_ws_url)?;
 
-        let device_id = env::var("AGENT_DEVICE_ID").unwrap_or_else(|_| {
+        let default_device_id = env::var("AGENT_DEVICE_ID").unwrap_or_else(|_| {
             hostname::get()
                 .ok()
                 .and_then(|host| host.into_string().ok())
                 .filter(|host| !host.is_empty())
                 .unwrap_or_else(|| DEFAULT_DEVICE_ID.to_string())
         });
+        let device_id = prompt_device_id(&default_device_id)?;
 
         Ok(Self {
             server_ws_url,
             device_id,
+            agent_name: env::var("AGENT_NAME").unwrap_or_else(|_| DESKTOP_AGENT_NAME.to_string()),
         })
     }
 }
@@ -87,4 +92,21 @@ fn prompt_server_ws_url(default_value: &str) -> io::Result<String> {
     };
 
     Ok(normalize_server_ws_url(raw))
+}
+
+fn prompt_device_id(default_value: &str) -> io::Result<String> {
+    let mut stdout = io::stdout();
+    writeln!(stdout, "Please enter current device name")?;
+    write!(stdout, "Device name [{default_value}]: ")?;
+    stdout.flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Ok(default_value.to_string());
+    }
+
+    Ok(trimmed.to_string())
 }

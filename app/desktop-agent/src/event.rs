@@ -15,6 +15,7 @@ pub struct ActivityPayload {
     pub event_id: String,
     pub ts: String,
     pub device_id: String,
+    pub agent_name: String,
     pub platform: &'static str,
     pub kind: &'static str,
     pub app: AppInfo,
@@ -35,6 +36,7 @@ pub struct AppInfo {
 impl ActivityEnvelope {
     pub fn foreground_changed(
         device_id: &str,
+        agent_name: &str,
         platform: &'static str,
         source: &'static str,
         mut app: AppInfo,
@@ -50,6 +52,7 @@ impl ActivityEnvelope {
                 event_id: Uuid::new_v4().to_string(),
                 ts: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
                 device_id: device_id.to_string(),
+                agent_name: agent_name.to_string(),
                 platform,
                 kind: "foreground_changed",
                 app,

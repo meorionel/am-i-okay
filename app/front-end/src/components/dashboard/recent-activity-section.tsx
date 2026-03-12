@@ -8,7 +8,7 @@ interface RecentActivitySectionProps {
 export function RecentActivitySection({ activities }: RecentActivitySectionProps) {
 	return (
 		<section className="mt-16 sm:mt-20">
-			<p className="text-[11px] font-semibold tracking-[0.28em] text-stone-400 uppercase sm:text-xs">Recent Activity</p>
+			<p className="text-[11px] font-semibold tracking-[0.28em] text-stone-400 uppercase sm:text-xs">最近活跃</p>
 			{activities.length > 0 ? (
 				<div className="relative mt-7 pl-8 sm:pl-10">
 					<div className="absolute left-3 top-3 bottom-4 w-px bg-stone-200 sm:left-3.5" />

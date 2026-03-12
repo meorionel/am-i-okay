@@ -36,6 +36,7 @@ struct ForegroundApp {
 
 struct HookContext {
     device_id: String,
+    agent_name: String,
     tx: mpsc::UnboundedSender<ActivityEnvelope>,
     last_app: Mutex<Option<LastApp>>,
     last_read_error_at: Mutex<Option<Instant>>,
@@ -43,14 +44,20 @@ struct HookContext {
 
 pub fn run_foreground_watcher(
     device_id: String,
+    agent_name: String,
     tx: mpsc::UnboundedSender<ActivityEnvelope>,
 ) -> Result<()> {
-    run_watcher(device_id, tx)
+    run_watcher(device_id, agent_name, tx)
 }
 
-fn run_watcher(device_id: String, tx: mpsc::UnboundedSender<ActivityEnvelope>) -> Result<()> {
+fn run_watcher(
+    device_id: String,
+    agent_name: String,
+    tx: mpsc::UnboundedSender<ActivityEnvelope>,
+) -> Result<()> {
     let context = HookContext {
         device_id,
+        agent_name,
         tx,
         last_app: Mutex::new(None),
         last_read_error_at: Mutex::new(None),
@@ -172,6 +179,7 @@ fn emit_frontmost_event(hwnd_hint: Option<HWND>) {
 
     let event = ActivityEnvelope::foreground_changed(
         &context.device_id,
+        &context.agent_name,
         "windows",
         "setwineventhook",
         current.app,
