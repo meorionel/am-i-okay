@@ -20,6 +20,23 @@ export interface ActivityEvent {
   source: string;
 }
 
+export interface RecentActivityItem {
+  eventId: string;
+  ts: string;
+  deviceId: string;
+  platform: Platform;
+  app: ActivityApp;
+  windowTitle?: string;
+  source: string;
+  displayTime: string;
+  summary: string;
+}
+
+export interface DeviceActivitySnapshot {
+  current: ActivityEvent;
+  recentActivities: RecentActivityItem[];
+}
+
 export interface AgentActivityMessage {
   type: "activity";
   payload: ActivityEvent;
@@ -31,6 +48,8 @@ export interface SnapshotMessage {
   type: "snapshot";
   payload: {
     devices: ActivityEvent[];
+    deviceSnapshots: DeviceActivitySnapshot[];
+    recentActivities: RecentActivityItem[];
   };
 }
 

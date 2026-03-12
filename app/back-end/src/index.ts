@@ -30,6 +30,8 @@ Bun.serve<WsClientData>({
     if (req.method === "GET" && url.pathname === "/api/current") {
       return jsonResponse({
         devices: store.getAll(),
+        deviceSnapshots: store.getDeviceSnapshots(),
+        recentActivities: store.getRecentActivities(),
       });
     }
 

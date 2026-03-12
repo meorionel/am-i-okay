@@ -4,6 +4,7 @@
 
 - 接收 agent 上报的前台应用变化事件
 - 内存维护每个 `deviceId` 的最新状态（无数据库）
+- 内存维护所有 agent 的最近 10 次 app 使用记录
 - 实时转发给 dashboard WebSocket 客户端
 - 提供健康检查和当前状态查询接口
 
@@ -52,7 +53,7 @@ bun run start
 
 ### `GET /api/current`
 
-返回所有设备当前最新状态：
+返回所有设备当前最新状态，同时附带最近 10 条 app 使用记录：
 
 ```json
 {
@@ -71,9 +72,67 @@ bun run start
       "windowTitle": "ChatGPT - Google Chrome",
       "source": "nsworkspace"
     }
+  ],
+  "deviceSnapshots": [
+    {
+      "current": {
+        "eventId": "evt_001",
+        "ts": "2026-03-11T10:00:00.000Z",
+        "deviceId": "macbook-1",
+        "platform": "macos",
+        "kind": "foreground_changed",
+        "app": {
+          "id": "com.google.Chrome",
+          "name": "Google Chrome",
+          "pid": 123
+        },
+        "windowTitle": "ChatGPT - Google Chrome",
+        "source": "nsworkspace"
+      },
+      "recentActivities": [
+        {
+          "eventId": "evt_001",
+          "ts": "2026-03-11T10:00:00.000Z",
+          "deviceId": "macbook-1",
+          "platform": "macos",
+          "app": {
+            "id": "com.google.Chrome",
+            "name": "Google Chrome",
+            "pid": 123
+          },
+          "windowTitle": "ChatGPT - Google Chrome",
+          "source": "nsworkspace",
+          "displayTime": "10:00 AM",
+          "summary": "10:00 AM Google Chrome on macbook-1"
+        }
+      ]
+    }
+  ],
+  "recentActivities": [
+    {
+      "eventId": "evt_001",
+      "ts": "2026-03-11T10:00:00.000Z",
+      "deviceId": "macbook-1",
+      "platform": "macos",
+      "app": {
+        "id": "com.google.Chrome",
+        "name": "Google Chrome",
+        "pid": 123
+      },
+      "windowTitle": "ChatGPT - Google Chrome",
+      "source": "nsworkspace",
+      "displayTime": "10:00 AM",
+      "summary": "10:00 AM Google Chrome on macbook-1"
+    }
   ]
 }
 ```
+
+字段说明：
+
+- `devices`: 每个 device 当前最新一条状态
+- `deviceSnapshots`: 每个 device 的当前状态 + 最近 10 条使用记录
+- `recentActivities`: 所有 agent 合并后的最近 10 条使用记录，格式类似 `6:30 AM <app> on <device>`
 
 ## WebSocket
 
@@ -122,7 +181,9 @@ bun run start
 {
   "type": "snapshot",
   "payload": {
-    "devices": []
+    "devices": [],
+    "deviceSnapshots": [],
+    "recentActivities": []
   }
 }
 ```

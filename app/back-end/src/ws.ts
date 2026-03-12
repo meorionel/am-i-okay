@@ -101,6 +101,8 @@ export class WebSocketHub {
       type: "snapshot",
       payload: {
         devices: this.store.getAll(),
+        deviceSnapshots: this.store.getDeviceSnapshots(),
+        recentActivities: this.store.getRecentActivities(),
       },
     };
 
