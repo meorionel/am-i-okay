@@ -61,12 +61,12 @@ bun run lint
 import { useDashboardStream } from "@/src/hooks/use-dashboard-stream";
 
 export function DashboardDataConsumer() {
-  const { devices, connectionStatus, lastEventAt } = useDashboardStream();
+	const { devices, connectionStatus, lastEventAt } = useDashboardStream();
 
-  // devices 已按 ts 倒序排序
-  console.log(devices, connectionStatus, lastEventAt);
+	// devices 已按 ts 倒序排序
+	console.log(devices, connectionStatus, lastEventAt);
 
-  return null;
+	return null;
 }
 ```
 
@@ -75,6 +75,6 @@ export function DashboardDataConsumer() {
 - HTTP / WS / JSON 解析错误都在内部吞掉并记录，不会抛出导致应用崩溃。
 - WebSocket 断开后每 2 秒自动重连。
 - `useDashboardStream()` 返回：
-  - `devices: ActivityEvent[]`
-  - `connectionStatus: "connecting" | "connected" | "disconnected" | "error"`
-  - `lastEventAt: number | null`
+    - `devices: ActivityEvent[]`
+    - `connectionStatus: "connecting" | "connected" | "disconnected" | "error"`
+    - `lastEventAt: number | null`
