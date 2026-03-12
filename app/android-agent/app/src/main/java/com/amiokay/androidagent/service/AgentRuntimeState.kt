@@ -96,6 +96,10 @@ object AgentRuntimeState {
         )
     }
 
+    fun clearLogs() {
+        mutableStatus.value = mutableStatus.value.copy(logEntries = emptyList())
+    }
+
     private fun appendLogLine(
         currentLines: List<AgentLogEntry>,
         level: AgentLogLevel,

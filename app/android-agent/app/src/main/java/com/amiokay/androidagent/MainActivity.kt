@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
                         onAgentNameChanged = viewModel::onAgentNameChanged,
                         onStartClicked = viewModel::onStartClicked,
                         onStopClicked = viewModel::onStopClicked,
+                        onClearLogsClicked = viewModel::onClearLogsClicked,
                         onOpenAccessibilitySettings = ::openAccessibilitySettings,
                         onMessageConsumed = viewModel::onMessageConsumed
                     )

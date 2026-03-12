@@ -86,6 +86,10 @@ class AgentViewModel(
         )
     }
 
+    fun onClearLogsClicked() {
+        agentController.clearLogs()
+    }
+
     fun onMessageConsumed() {
         if (uiState.message != null) {
             uiState = uiState.copy(message = null)

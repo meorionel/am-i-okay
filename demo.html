@@ -1,160 +1,221 @@
 <!DOCTYPE html>
 
-<html lang="en"><head>
+<html class="h-full" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Am I Okay - Activity Tracker</title>
-<!-- Tailwind CSS v3 CDN with required plugins -->
+<title>Android Agent MVP - Material You</title>
+<!-- Tailwind CSS v3 with Plugins -->
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<!-- Google Fonts for subtle typography -->
+<!-- Google Fonts: Roboto & Roboto Mono for Material Look -->
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&amp;family=Lora:ital@0;1&amp;display=swap" rel="stylesheet"/>
-<style data-purpose="typography-config">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols for Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            // Material You Dynamic Palette (Lavender/Light Blue tones)
+            primary: '#6750A4',
+            onPrimary: '#FFFFFF',
+            primaryContainer: '#EADDFF',
+            onPrimaryContainer: '#21005D',
+            secondary: '#625B71',
+            onSecondary: '#FFFFFF',
+            secondaryContainer: '#E8DEF8',
+            onSecondaryContainer: '#1D192B',
+            surface: '#FEF7FF',
+            onSurface: '#1D1B20',
+            outline: '#79747E',
+            surfaceVariant: '#E7E0EC',
+            onSurfaceVariant: '#49454F',
+            error: '#B3261E',
+          },
+          fontFamily: {
+            sans: ['Roboto', 'sans-serif'],
+            mono: ['Roboto Mono', 'monospace'],
+          },
+        }
+      }
+    }
+  </script>
+<style data-purpose="material-you-custom">
     body {
-      font-family: 'Inter', sans-serif;
-      background-color: #F9FAFB;
-      color: #374151;
+      background-color: #FEF7FF; /* surface */
+      color: #1D1B20; /* onSurface */
+      -webkit-tap-highlight-color: transparent;
     }
-    .serif-title {
-      font-family: 'Lora', serif;
+
+    /* Material You Text Field Simulation */
+    .m3-textfield {
+      position: relative;
+      margin-top: 8px;
     }
-  </style>
-<style data-purpose="layout-styling">
-    .app-container {
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 4rem 2rem;
-    }
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background-color: #A3B18A; /* Sage Green */
-      display: inline-block;
-      margin-right: 12px;
-    }
-    .timeline-line {
+    .m3-label {
       position: absolute;
-      left: 19px;
-      top: 24px;
-      bottom: -12px;
-      width: 1px;
-      background-color: #E5E7EB;
+      top: -10px;
+      left: 12px;
+      background: #FEF7FF;
+      padding: 0 4px;
+      font-size: 12px;
+      color: #6750A4;
+      font-weight: 500;
     }
-    .timeline-item:last-child .timeline-line {
-      display: none;
+
+    /* Custom Scrollbar for Logs */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #CAC4D0;
+      border-radius: 10px;
     }
   </style>
 </head>
-<body class="antialiased selection:bg-sage-100">
-<!-- BEGIN: MainContainer -->
-<main class="app-container min-h-screen">
-<!-- BEGIN: Header -->
-<header class="mb-16" data-purpose="application-header">
-<h1 class="serif-title text-3xl font-light text-gray-800 tracking-tight mb-2">Am I Okay</h1>
-<p class="text-sm text-gray-400 font-light italic">A quiet reflection of your digital space.</p>
+<body class="flex flex-col min-h-screen">
+<!-- BEGIN: TopAppBar -->
+<header class="sticky top-0 z-50 bg-surface px-4 py-4 flex items-center shadow-sm md:shadow-none justify-start">
+<h1 class="text-xl font-medium text-onSurface">Android Agent MVP</h1>
 </header>
-<!-- END: Header -->
-<!-- BEGIN: ActiveNow -->
-<section class="mb-16" data-purpose="active-activity-section">
-<h2 class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-8">Active Now</h2>
-<!-- Current Activity Card -->
-<div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-50 flex items-center transition-all hover:shadow-md" data-purpose="active-device-card">
-<div class="flex-shrink-0 mr-6">
-<!-- macOS Icon Placeholder (Simplified) -->
-<div class="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
-<svg fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewbox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><rect height="14" rx="2" ry="2" width="20" x="2" y="3"></rect><line x1="8" x2="16" y1="21" y2="21"></line><line x1="12" x2="12" y1="17" y2="21"></line></svg>
+<!-- END: TopAppBar -->
+<main class="flex-1 overflow-y-auto px-4 py-2 space-y-6 max-w-2xl mx-auto w-full">
+<!-- BEGIN: ConfigurationSection -->
+<section class="space-y-4" data-purpose="configuration-form">
+<!-- Backend URL Field -->
+<div class="m3-textfield">
+<label class="m3-label">Backend URL</label>
+<input class="w-full h-14 bg-transparent rounded-xl px-4 text-onSurface focus:ring-0 focus:border-primary transition-all bg-surfaceVariant/50" type="text" value="ws://192.168.75.83:3000/ws/agent"/>
+</div>
+<!-- Agent Name Field -->
+<div class="m3-textfield">
+<label class="m3-label">Agent Name</label>
+<input class="w-full h-14 bg-transparent rounded-xl px-4 text-onSurface focus:ring-0 focus:border-primary transition-all bg-surfaceVariant/50" type="text" value="爱丽丝的 MiPad"/>
+</div>
+</section>
+<!-- END: ConfigurationSection -->
+<!-- BEGIN: ActionButtons -->
+<section class="flex flex-col gap-3" data-purpose="main-actions">
+<!-- Primary Filled Button -->
+<button class="w-full h-12 bg-primary text-onPrimary rounded-full font-medium flex items-center justify-center gap-2 hover:shadow-lg active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[20px]">play_arrow</span>
+        Start Agent
+      </button>
+<div class="grid grid-cols-2 gap-3">
+<!-- Outlined Button -->
+<button class="h-12 border-2 border-outline text-primary rounded-full font-medium flex items-center justify-center gap-2 hover:bg-primary/5 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[20px]">stop</span>
+          Stop Agent
+        </button>
+<!-- Tonal Button -->
+<button class="h-12 bg-secondaryContainer text-onSecondaryContainer rounded-full font-medium flex items-center justify-center gap-2 hover:shadow active:scale-95 transition-all text-sm px-2">
+<span class="material-symbols-outlined text-[20px]">accessibility_new</span>
+          Accessibility
+        </button>
+</div>
+</section>
+<!-- END: ActionButtons -->
+<!-- BEGIN: StatusCards -->
+<section class="grid grid-cols-1 md:grid-cols-2 gap-3" data-purpose="status-info">
+<!-- Connection Status Card -->
+<div class="bg-surfaceVariant/40 p-4 rounded-2xl border border-surfaceVariant flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-700">
+<span class="material-symbols-outlined">wifi</span>
+</div>
+<div>
+<p class="text-xs text-onSurfaceVariant font-medium uppercase tracking-wider">Connection Status</p>
+<p class="text-lg font-bold text-green-700">CONNECTED</p>
 </div>
 </div>
-<div class="flex-grow">
-<div class="flex items-center mb-1">
-<span class="status-dot animate-pulse"></span>
-<span class="text-sm font-medium text-gray-500">TheSHELL.local</span>
-<span class="mx-2 text-gray-300">/</span>
-<span class="text-xs text-gray-400 px-2 py-0.5 bg-gray-100 rounded">macOS</span>
+<!-- Service Status Card -->
+<div class="bg-surfaceVariant/40 p-4 rounded-2xl border border-surfaceVariant flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-primaryContainer flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">running_with_errors</span>
 </div>
-<p class="text-lg font-normal text-gray-800">Currently using <span class="font-semibold text-[#588157]">Arc</span></p>
+<div>
+<p class="text-xs text-onSurfaceVariant font-medium uppercase tracking-wider">Service Running</p>
+<p class="text-lg font-bold text-onSurface">Yes</p>
 </div>
 </div>
 </section>
-<!-- END: ActiveNow -->
-<!-- BEGIN: RecentActivity -->
-<section data-purpose="recent-activity-timeline">
-<h2 class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-8">Recent Activity</h2>
-<div class="space-y-0">
-<!-- Timeline Item 1 -->
-<div class="relative pl-10 pb-10 timeline-item" data-purpose="activity-log-entry">
-<div class="timeline-line"></div>
-<div class="absolute left-4 top-2 w-2 h-2 rounded-full bg-gray-200"></div>
-<div class="flex flex-col">
-<span class="text-xs text-gray-400 mb-1">06:45 AM</span>
-<div class="flex items-baseline space-x-2">
-<span class="text-sm font-medium text-gray-700">Spotify</span>
-<span class="text-xs text-gray-400">on iPhone</span>
+<!-- END: StatusCards -->
+<!-- BEGIN: LogTerminal -->
+<section class="flex flex-col h-[400px] pb-6" data-purpose="logs-view">
+<div class="flex items-center justify-between mb-2">
+<h2 class="text-sm font-medium text-onSurfaceVariant flex items-center gap-2">
+<span class="material-symbols-outlined text-base">terminal</span>
+          System Logs
+        </h2>
+<button class="text-xs text-primary font-medium hover:bg-primary/5 px-2 py-1 rounded">Clear Logs</button>
 </div>
-<p class="text-xs text-gray-400 mt-1 italic">"Late Night Jazz" playlist</p>
+<div class="flex-1 bg-surfaceVariant/30 rounded-3xl p-4 font-mono text-[13px] leading-relaxed overflow-hidden flex flex-col border border-surfaceVariant">
+<div class="custom-scrollbar overflow-y-auto h-full space-y-1 pr-2">
+<div class="flex gap-2">
+<span class="text-primary/70 shrink-0">17:17:15</span>
+<span class="text-green-600 font-bold shrink-0">[INFO]</span>
+<span class="text-onSurface">Activity payload #5 reported</span>
 </div>
+<div class="flex gap-2">
+<span class="text-primary/70 shrink-0">17:17:15</span>
+<span class="text-green-600 font-bold shrink-0">[INFO]</span>
+<span class="text-onSurface">WebSocket message sent to backend</span>
 </div>
-<!-- Timeline Item 2 -->
-<div class="relative pl-10 pb-10 timeline-item" data-purpose="activity-log-entry">
-<div class="timeline-line"></div>
-<div class="absolute left-4 top-2 w-2 h-2 rounded-full bg-gray-200"></div>
-<div class="flex flex-col">
-<span class="text-xs text-gray-400 mb-1">06:12 AM</span>
-<div class="flex items-baseline space-x-2">
-<span class="text-sm font-medium text-gray-700">Notion</span>
-<span class="text-xs text-gray-400">on TheSHELL.local</span>
+<div class="flex gap-2">
+<span class="text-primary/70 shrink-0">17:17:15</span>
+<span class="text-green-600 font-bold shrink-0">[INFO]</span>
+<span class="text-onSurface">Foreground app changed: <span class="text-blue-600">Gboard</span></span>
 </div>
+<div class="flex gap-2 pl-14 text-onSurfaceVariant italic text-[11px]">
+            (com.google.android.inputmethod.latin)
+          </div>
+<div class="flex gap-2 mt-2">
+<span class="text-primary/70 shrink-0">17:17:14</span>
+<span class="text-green-600 font-bold shrink-0">[INFO]</span>
+<span class="text-onSurface">Activity payload #4 reported</span>
 </div>
+<div class="flex gap-2">
+<span class="text-primary/70 shrink-0">17:17:14</span>
+<span class="text-green-600 font-bold shrink-0">[INFO]</span>
+<span class="text-onSurface">WebSocket message sent to backend</span>
 </div>
-<!-- Timeline Item 3 -->
-<div class="relative pl-10 pb-10 timeline-item" data-purpose="activity-log-entry">
-<div class="timeline-line"></div>
-<div class="absolute left-4 top-2 w-2 h-2 rounded-full bg-gray-200"></div>
-<div class="flex flex-col">
-<span class="text-xs text-gray-400 mb-1">05:30 AM</span>
-<div class="flex items-baseline space-x-2">
-<span class="text-sm font-medium text-gray-700">VS Code</span>
-<span class="text-xs text-gray-400">on TheSHELL.local</span>
+<div class="flex gap-2">
+<span class="text-primary/70 shrink-0">17:17:14</span>
+<span class="text-green-600 font-bold shrink-0">[INFO]</span>
+<span class="text-onSurface">Foreground app changed: <span class="text-blue-600">QQ</span></span>
 </div>
+<div class="flex gap-2 pl-14 text-onSurfaceVariant italic text-[11px]">
+            (com.tencent.mobileqq)
+          </div>
+<div class="flex gap-2 mt-2">
+<span class="text-primary/70 shrink-0">17:17:12</span>
+<span class="text-green-600 font-bold shrink-0">[INFO]</span>
+<span class="text-onSurface">WebSocket open: ws://192.168.75.83:3000...</span>
 </div>
+<div class="flex gap-2">
+<span class="text-primary/70 shrink-0">17:17:12</span>
+<span class="text-green-600 font-bold shrink-0">[INFO]</span>
+<span class="text-onSurface">Connected to backend</span>
 </div>
-<!-- Timeline Item 4 -->
-<div class="relative pl-10 pb-4 timeline-item" data-purpose="activity-log-entry">
-<div class="timeline-line"></div>
-<div class="absolute left-4 top-2 w-2 h-2 rounded-full bg-gray-200"></div>
-<div class="flex flex-col">
-<span class="text-xs text-gray-400 mb-1">Yesterday, 11:20 PM</span>
-<div class="flex items-baseline space-x-2">
-<span class="text-sm font-medium text-gray-700">Kindle</span>
-<span class="text-xs text-gray-400">on Mobile</span>
-</div>
+<div class="flex gap-2">
+<span class="text-primary/70 shrink-0">17:17:12</span>
+<span class="text-green-600 font-bold shrink-0">[INFO]</span>
+<span class="text-onSurface">Connecting to backend...</span>
 </div>
 </div>
 </div>
 </section>
-<!-- END: RecentActivity -->
-<!-- BEGIN: FooterStatus -->
-<footer class="mt-24 pt-8 border-t border-gray-100 flex justify-between items-center" data-purpose="app-footer">
-<div class="text-[10px] text-gray-300 uppercase tracking-widest">
-        Last synced: 2026-03-12 06:56
-      </div>
-<button class="text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center group">
-<span>Settings</span>
-<svg class="h-3 w-3 ml-1 group-hover:rotate-45 transition-transform" fill="none" stroke="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
-<path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
-</svg>
-</button>
-</footer>
-<!-- END: FooterStatus -->
+<!-- END: LogTerminal -->
 </main>
-<!-- END: MainContainer -->
-<script data-purpose="interaction-logic">
-    // Minimal interaction logic can be added here if needed
-    document.addEventListener('DOMContentLoaded', () => {
-      console.log('Am I Okay interface initialized.');
+<script data-purpose="mock-interactivity">
+    // Subtle interaction script for demo purposes
+    document.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        console.log('Action triggered');
+      });
     });
   </script>
 </body></html>

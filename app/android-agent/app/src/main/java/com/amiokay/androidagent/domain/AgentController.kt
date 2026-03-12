@@ -90,6 +90,10 @@ class AgentController(
         }
     }
 
+    fun clearLogs() {
+        AgentRuntimeState.clearLogs()
+    }
+
     @Suppress("DEPRECATION")
     fun isServiceRunning(): Boolean {
         val manager = appContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
