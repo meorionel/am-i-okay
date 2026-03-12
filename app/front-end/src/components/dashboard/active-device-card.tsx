@@ -44,7 +44,7 @@ export function ActiveDeviceCard({ device }: ActiveDeviceCardProps) {
 						<span className="rounded-md bg-stone-100 px-2.5 py-1 text-[11px] text-stone-400">{formatPlatform(device.platform)}</span>
 					</div>
 					<p className="mt-3 text-lg font-normal tracking-[-0.04em] text-stone-800 sm:text-[1.55rem]">
-						Currently using <span className="font-semibold text-[#588157]">{device.app.title}</span>
+						正在使用 <span className="font-semibold text-[#588157]">{device.app.title}</span>
 					</p>
 					{secondaryLine ? <p className="mt-1.5 text-xs italic text-stone-400 sm:text-sm">{secondaryLine}</p> : null}
 				</div>
