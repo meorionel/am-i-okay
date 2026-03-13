@@ -98,12 +98,14 @@ export function useDashboardStream(): {
 	recentActivities: RecentActivity[];
 	connectionStatus: ConnectionStatus;
 	lastEventAt: number | null;
+	isBootstrapping: boolean;
 } {
 	const [deviceState, dispatch] = useReducer(deviceReducer, {});
 	const [latestStatus, setLatestStatus] = useState<DeviceStatus | null>(null);
 	const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
 	const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
 	const [lastEventAt, setLastEventAt] = useState<number | null>(null);
+	const [isBootstrapping, setIsBootstrapping] = useState(true);
 
 	useEffect(() => {
 		let isActive = true;
@@ -121,15 +123,21 @@ export function useDashboardStream(): {
 		};
 
 		const bootstrap = async (): Promise<void> => {
-			const dashboard = await fetchCurrentDevices();
-			if (!isActive) {
-				return;
-			}
+			try {
+				const dashboard = await fetchCurrentDevices();
+				if (!isActive) {
+					return;
+				}
 
-			safeDispatch({ type: "replace", devices: dashboard.devices });
-			setLatestStatus(dashboard.latestStatus);
-			setRecentActivities(dashboard.recentActivities);
-			safeSetLastEventAt(resolveLastEventAt(dashboard.devices));
+				safeDispatch({ type: "replace", devices: dashboard.devices });
+				setLatestStatus(dashboard.latestStatus);
+				setRecentActivities(dashboard.recentActivities);
+				safeSetLastEventAt(resolveLastEventAt(dashboard.devices));
+			} finally {
+				if (isActive) {
+					setIsBootstrapping(false);
+				}
+			}
 		};
 
 		void bootstrap();
@@ -182,5 +190,6 @@ export function useDashboardStream(): {
 		recentActivities,
 		connectionStatus,
 		lastEventAt,
+		isBootstrapping,
 	};
 }

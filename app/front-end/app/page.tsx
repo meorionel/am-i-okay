@@ -1,5 +1,6 @@
 "use client";
 
+import { PageLoading } from "./loading";
 import { ActiveDevicesSection } from "@/src/components/dashboard/active-devices-section";
 import { DashboardHeader } from "@/src/components/dashboard/dashboard-header";
 import { DeviceStatusSection } from "@/src/components/dashboard/device-status-section";
@@ -9,10 +10,14 @@ import { useDashboardStream } from "@/src/hooks/use-dashboard-stream";
 import { useOnlineCount } from "@/src/hooks/use-online-count";
 
 export default function Home() {
-	const { devices, latestStatus, recentActivities, connectionStatus, lastEventAt } = useDashboardStream();
+	const { devices, latestStatus, recentActivities, connectionStatus, lastEventAt, isBootstrapping } = useDashboardStream();
 	const onlineCount = useOnlineCount();
 	const visibleTimeline = recentActivities.slice(0, 4);
 	const lastUpdated = lastEventAt ? formatTimelineTime(new Date(lastEventAt).toISOString()) : null;
+
+	if (isBootstrapping) {
+		return <PageLoading />;
+	}
 
 	return (
 		<main className="min-h-screen bg-[linear-gradient(180deg,#fbfbf9_0%,#f5f5f1_42%,#efefe9_100%)] text-stone-700">
