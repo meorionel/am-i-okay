@@ -46,6 +46,8 @@ class MainActivity : ComponentActivity() {
                         onBackendUrlChanged = viewModel::onBackendUrlChanged,
                         onAgentNameChanged = viewModel::onAgentNameChanged,
                         onStatusTextChanged = viewModel::onStatusTextChanged,
+                        onExcludedAppsFilterChanged = viewModel::onExcludedAppsFilterChanged,
+                        onExcludedPackageToggled = viewModel::onExcludedPackageToggled,
                         onStartClicked = viewModel::onStartClicked,
                         onStopClicked = viewModel::onStopClicked,
                         onClearLogsClicked = viewModel::onClearLogsClicked,

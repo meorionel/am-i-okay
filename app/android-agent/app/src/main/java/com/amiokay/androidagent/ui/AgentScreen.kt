@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -56,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.amiokay.androidagent.domain.InstalledAppOption
 import com.amiokay.androidagent.service.AgentConnectionState
 import com.amiokay.androidagent.service.AgentLogEntry
 import com.amiokay.androidagent.service.AgentLogLevel
@@ -66,6 +69,8 @@ fun AgentScreen(
     onBackendUrlChanged: (String) -> Unit,
     onAgentNameChanged: (String) -> Unit,
     onStatusTextChanged: (String) -> Unit,
+    onExcludedAppsFilterChanged: (String) -> Unit,
+    onExcludedPackageToggled: (String) -> Unit,
     onStartClicked: () -> Unit,
     onStopClicked: () -> Unit,
     onClearLogsClicked: () -> Unit,
@@ -129,6 +134,13 @@ fun AgentScreen(
                         value = uiState.statusTextInput,
                         placeholder = "type something for the dashboard",
                         onValueChange = onStatusTextChanged
+                    )
+                    ExcludedAppsCard(
+                        filterText = uiState.excludedAppsFilterInput,
+                        installedApps = uiState.installedApps,
+                        selectedPackages = uiState.selectedExcludedPackages,
+                        onFilterChanged = onExcludedAppsFilterChanged,
+                        onPackageToggled = onExcludedPackageToggled
                     )
                 }
             }
@@ -342,6 +354,135 @@ private fun LabeledInputCard(
                 .background(AppColors.Screen)
                 .padding(horizontal = 4.dp)
         )
+    }
+}
+
+@Composable
+private fun ExcludedAppsCard(
+    filterText: String,
+    installedApps: List<InstalledAppOption>,
+    selectedPackages: Set<String>,
+    onFilterChanged: (String) -> Unit,
+    onPackageToggled: (String) -> Unit
+) {
+    val normalizedFilter = filterText.trim().lowercase()
+    val filteredApps = installedApps.filter { app ->
+        normalizedFilter.isEmpty() ||
+            app.appName.lowercase().contains(normalizedFilter) ||
+            app.packageName.lowercase().contains(normalizedFilter)
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = AppColors.SurfaceVariantSoft,
+        border = BorderStroke(1.dp, AppColors.SurfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Skip Reporting Apps",
+                color = AppColors.TextPrimary,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = "Selected apps will not trigger a new report. The dashboard keeps the last reported app.",
+                color = AppColors.TextMuted,
+                fontSize = 12.sp,
+                lineHeight = 18.sp
+            )
+            LabeledInputCard(
+                label = "Search Apps",
+                value = filterText,
+                placeholder = "search by app name or package",
+                onValueChange = onFilterChanged
+            )
+            Text(
+                text = "Selected ${selectedPackages.size}",
+                color = AppColors.Primary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 160.dp, max = 280.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(AppColors.SurfaceVariantFaint)
+                    .border(1.dp, AppColors.SurfaceVariant, RoundedCornerShape(20.dp))
+            ) {
+                if (filteredApps.isEmpty()) {
+                    Text(
+                        text = if (installedApps.isEmpty()) {
+                            "No launchable apps found"
+                        } else {
+                            "No apps match the current filter"
+                        },
+                        modifier = Modifier.padding(16.dp),
+                        color = AppColors.TextMuted,
+                        fontSize = 13.sp
+                    )
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        items(filteredApps, key = { it.packageName }) { app ->
+                            SelectableAppRow(
+                                app = app,
+                                selected = selectedPackages.contains(app.packageName),
+                                onClick = { onPackageToggled(app.packageName) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SelectableAppRow(
+    app: InstalledAppOption,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Checkbox(
+            checked = selected,
+            onCheckedChange = { onClick() }
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = app.appName,
+                color = AppColors.TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = app.packageName,
+                color = AppColors.TextMuted,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 

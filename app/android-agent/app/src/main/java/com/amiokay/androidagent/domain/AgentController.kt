@@ -15,11 +15,17 @@ sealed interface AgentStartResult {
     data class Started(
         val savedBackendUrl: String,
         val savedAgentName: String,
-        val savedStatusText: String
+        val savedStatusText: String,
+        val savedExcludedPackages: Set<String>
     ) : AgentStartResult
 
     data class Error(val reason: String) : AgentStartResult
 }
+
+data class InstalledAppOption(
+    val packageName: String,
+    val appName: String
+)
 
 class AgentController(
     private val appContext: Context,
@@ -29,16 +35,22 @@ class AgentController(
     val backendUrl: Flow<String> = configRepository.backendUrl
     val agentName: Flow<String> = configRepository.agentName
     val statusText: Flow<String> = configRepository.statusText
+    val excludedPackages: Flow<Set<String>> = configRepository.excludedPackages
     val runtimeStatus: Flow<AgentRuntimeStatus> = AgentRuntimeState.status
 
     suspend fun startAgent(
         rawBackendUrl: String,
         rawAgentName: String,
-        rawStatusText: String
+        rawStatusText: String,
+        excludedPackages: Set<String>
     ): AgentStartResult {
         val backendUrl = rawBackendUrl.trim()
         val agentName = rawAgentName.trim()
         val statusText = rawStatusText.trim()
+        val sanitizedExcludedPackages = excludedPackages
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toSet()
         if (backendUrl.isEmpty()) {
             return AgentStartResult.Error("Backend URL is required before starting the agent.")
         }
@@ -56,9 +68,15 @@ class AgentController(
         configRepository.saveBackendUrl(backendUrl)
         configRepository.saveAgentName(agentName)
         configRepository.saveStatusText(statusText)
+        configRepository.saveExcludedPackages(sanitizedExcludedPackages)
         AgentRuntimeState.appendLog("Saved backend URL: $backendUrl")
         AgentRuntimeState.appendLog("Saved agent name: $agentName")
         AgentRuntimeState.appendLog("Saved status text: ${statusText.ifEmpty { "(empty)" }}")
+        AgentRuntimeState.appendLog(
+            "Saved excluded packages: ${
+                sanitizedExcludedPackages.joinToString().ifEmpty { "(none)" }
+            }"
+        )
 
         val startIntent = Intent(appContext, AgentForegroundService::class.java).apply {
             action = AgentForegroundService.ACTION_START
@@ -66,7 +84,12 @@ class AgentController(
         return runCatching {
             AgentRuntimeState.appendLog("Starting foreground service")
             ContextCompat.startForegroundService(appContext, startIntent)
-            AgentStartResult.Started(backendUrl, agentName, statusText)
+            AgentStartResult.Started(
+                backendUrl,
+                agentName,
+                statusText,
+                sanitizedExcludedPackages
+            )
         }.getOrElse { error ->
             val message = when {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
@@ -101,6 +124,36 @@ class AgentController(
 
     fun clearLogs() {
         AgentRuntimeState.clearLogs()
+    }
+
+    fun getInstalledApps(): List<InstalledAppOption> {
+        val packageManager = appContext.packageManager
+        return packageManager.getInstalledApplications(0)
+            .asSequence()
+            .filter { applicationInfo ->
+                applicationInfo.packageName != appContext.packageName &&
+                    isUserInstalledApp(applicationInfo) &&
+                    packageManager.getLaunchIntentForPackage(applicationInfo.packageName) != null
+            }
+            .map { applicationInfo ->
+                InstalledAppOption(
+                    packageName = applicationInfo.packageName,
+                    appName = packageManager.getApplicationLabel(applicationInfo).toString()
+                )
+            }
+            .sortedWith(
+                compareBy<InstalledAppOption> { it.appName.lowercase() }
+                    .thenBy { it.packageName.lowercase() }
+            )
+            .toList()
+    }
+
+    private fun isUserInstalledApp(applicationInfo: android.content.pm.ApplicationInfo): Boolean {
+        val isSystemApp =
+            (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+        val isUpdatedSystemApp =
+            (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+        return !isSystemApp || isUpdatedSystemApp
     }
 
     @Suppress("DEPRECATION")

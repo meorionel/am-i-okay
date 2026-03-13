@@ -59,6 +59,8 @@ class AgentForegroundService : Service() {
     private var statusText: String = ""
     private var reportSequence: Long = 0
     private var lastReportedPackageName: String? = null
+    private var lastObservedPackageName: String? = null
+    private var excludedPackages: Set<String> = emptySet()
     private var usageAccessUnavailableLogged = false
     private var isScreenInteractive = true
 
@@ -70,6 +72,7 @@ class AgentForegroundService : Service() {
                     AgentRuntimeState.appendLog("Screen turned off, disconnecting websocket")
                     AccessibilityAppState.setPaused(true)
                     lastReportedPackageName = null
+                    lastObservedPackageName = null
                     webSocketClient.close("screen_off")
                 }
 
@@ -175,9 +178,13 @@ class AgentForegroundService : Service() {
             agentName = configRepository.agentName.first().trim()
                 .ifBlank { DEFAULT_AGENT_NAME }
             statusText = configRepository.statusText.first().trim()
+            excludedPackages = configRepository.excludedPackages.first()
             backendWebSocketUrl = toAgentWebSocketUrl(savedBackendUrl)
             AgentRuntimeState.appendLog("Using agent name: $agentName")
             AgentRuntimeState.appendLog("Using status text: ${statusText.ifEmpty { "(empty)" }}")
+            AgentRuntimeState.appendLog(
+                "Excluded packages: ${excludedPackages.joinToString().ifEmpty { "(none)" }}"
+            )
             AgentRuntimeState.appendLog("Resolved backend websocket URL: ${backendWebSocketUrl ?: "invalid"}")
 
             while (isActive) {
@@ -203,6 +210,7 @@ class AgentForegroundService : Service() {
                 val foregroundApp = activityMonitor.getForegroundApp()
                 if (foregroundApp == null) {
                     lastReportedPackageName = null
+                    lastObservedPackageName = null
                     if (!activityMonitor.isMonitoringAvailable()) {
                         if (!usageAccessUnavailableLogged) {
                             AgentRuntimeState.appendLog(
@@ -218,6 +226,20 @@ class AgentForegroundService : Service() {
                     continue
                 }
                 usageAccessUnavailableLogged = false
+
+                if (foregroundApp.packageName != lastObservedPackageName) {
+                    lastObservedPackageName = foregroundApp.packageName
+                    if (excludedPackages.contains(foregroundApp.packageName)) {
+                        AgentRuntimeState.appendLog(
+                            "Skipped reporting ${foregroundApp.appName} (${foregroundApp.packageName}) because it is excluded"
+                        )
+                    }
+                }
+
+                if (excludedPackages.contains(foregroundApp.packageName)) {
+                    delay(SAMPLE_INTERVAL_MS)
+                    continue
+                }
 
                 if (foregroundApp.packageName == lastReportedPackageName) {
                     delay(SAMPLE_INTERVAL_MS)
@@ -253,6 +275,8 @@ class AgentForegroundService : Service() {
         monitorJob?.cancel()
         monitorJob = null
         lastReportedPackageName = null
+        lastObservedPackageName = null
+        excludedPackages = emptySet()
         usageAccessUnavailableLogged = false
         AccessibilityAppState.setPaused(true)
         webSocketClient.close("agent_stopped")

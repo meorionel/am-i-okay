@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.amiokay.androidagent.domain.AgentController
 import com.amiokay.androidagent.domain.AgentStartResult
+import com.amiokay.androidagent.domain.InstalledAppOption
 import com.amiokay.androidagent.service.AgentConnectionState
 import com.amiokay.androidagent.service.AgentLogEntry
 import kotlinx.coroutines.flow.collect
@@ -17,6 +18,10 @@ data class AgentUiState(
     val backendUrlInput: String = "",
     val agentNameInput: String = "",
     val statusTextInput: String = "",
+    val installedApps: List<InstalledAppOption> = emptyList(),
+    val selectedExcludedPackages: Set<String> = emptySet(),
+    val savedExcludedPackages: Set<String> = emptySet(),
+    val excludedAppsFilterInput: String = "",
     val savedBackendUrl: String = "",
     val savedAgentName: String = "",
     val savedStatusText: String = "",
@@ -37,11 +42,14 @@ class AgentViewModel(
     private var inputHydratedFromStorage = false
     private var agentNameInputHydratedFromStorage = false
     private var statusTextInputHydratedFromStorage = false
+    private var excludedPackagesHydratedFromStorage = false
 
     init {
+        loadInstalledApps()
         observeSavedBackendUrl()
         observeSavedAgentName()
         observeSavedStatusText()
+        observeExcludedPackages()
         observeRuntimeStatus()
     }
 
@@ -66,16 +74,35 @@ class AgentViewModel(
         )
     }
 
+    fun onExcludedAppsFilterChanged(value: String) {
+        uiState = uiState.copy(
+            excludedAppsFilterInput = value
+        )
+    }
+
+    fun onExcludedPackageToggled(packageName: String) {
+        val selectedPackages = uiState.selectedExcludedPackages.toMutableSet()
+        if (!selectedPackages.add(packageName)) {
+            selectedPackages.remove(packageName)
+        }
+        uiState = uiState.copy(
+            selectedExcludedPackages = selectedPackages,
+            message = null
+        )
+    }
+
     fun onStartClicked() {
         val currentBackendUrl = uiState.backendUrlInput
         val currentAgentName = uiState.agentNameInput
         val currentStatusText = uiState.statusTextInput
+        val currentExcludedPackages = uiState.selectedExcludedPackages
         viewModelScope.launch {
             when (
                 val result = agentController.startAgent(
                     currentBackendUrl,
                     currentAgentName,
-                    currentStatusText
+                    currentStatusText,
+                    currentExcludedPackages
                 )
             ) {
                 is AgentStartResult.Started -> {
@@ -86,6 +113,8 @@ class AgentViewModel(
                         savedAgentName = result.savedAgentName,
                         statusTextInput = result.savedStatusText,
                         savedStatusText = result.savedStatusText,
+                        selectedExcludedPackages = result.savedExcludedPackages,
+                        savedExcludedPackages = result.savedExcludedPackages,
                         message = "Agent started"
                     )
                 }
@@ -180,6 +209,30 @@ class AgentViewModel(
                 )
                 statusTextInputHydratedFromStorage = true
             }
+        }
+    }
+
+    private fun observeExcludedPackages() {
+        viewModelScope.launch {
+            agentController.excludedPackages.collect { storedExcludedPackages ->
+                uiState = uiState.copy(
+                    savedExcludedPackages = storedExcludedPackages,
+                    selectedExcludedPackages = if (excludedPackagesHydratedFromStorage) {
+                        uiState.selectedExcludedPackages
+                    } else {
+                        storedExcludedPackages
+                    }
+                )
+                excludedPackagesHydratedFromStorage = true
+            }
+        }
+    }
+
+    private fun loadInstalledApps() {
+        viewModelScope.launch {
+            uiState = uiState.copy(
+                installedApps = agentController.getInstalledApps()
+            )
         }
     }
 

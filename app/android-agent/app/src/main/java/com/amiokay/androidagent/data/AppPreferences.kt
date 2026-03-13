@@ -12,4 +12,5 @@ object AppPreferences {
     val BackendUrl = stringPreferencesKey("backend_url")
     val AgentName = stringPreferencesKey("agent_name")
     val StatusText = stringPreferencesKey("status_text")
+    val ExcludedPackages = stringPreferencesKey("excluded_packages")
 }

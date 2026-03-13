@@ -8,6 +8,11 @@ import kotlinx.coroutines.flow.map
 class AgentConfigRepository(
     private val context: Context
 ) {
+    val excludedPackagesRaw: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[AppPreferences.ExcludedPackages].orEmpty()
+    }
+
+    val excludedPackages: Flow<Set<String>> = excludedPackagesRaw.map(::parseExcludedPackages)
 
     val backendUrl: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[AppPreferences.BackendUrl].orEmpty()
@@ -36,6 +41,26 @@ class AgentConfigRepository(
     suspend fun saveStatusText(text: String) {
         context.dataStore.edit { preferences ->
             preferences[AppPreferences.StatusText] = text
+        }
+    }
+
+    suspend fun saveExcludedPackages(packageNames: Set<String>) {
+        context.dataStore.edit { preferences ->
+            preferences[AppPreferences.ExcludedPackages] = packageNames
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .sorted()
+                .joinToString(separator = "\n")
+        }
+    }
+
+    companion object {
+        fun parseExcludedPackages(rawValue: String): Set<String> {
+            return rawValue
+                .lineSequence()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toSet()
         }
     }
 }
