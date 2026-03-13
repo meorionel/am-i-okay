@@ -56,6 +56,7 @@ class AgentForegroundService : Service() {
     private val webSocketClient = AgentWebSocketClient()
     private var backendWebSocketUrl: String? = null
     private var agentName: String = DEFAULT_AGENT_NAME
+    private var agentApiToken: String = ""
     private var statusText: String = ""
     private var reportSequence: Long = 0
     private var lastReportedPackageName: String? = null
@@ -182,10 +183,16 @@ class AgentForegroundService : Service() {
 
             agentName = configRepository.agentName.first().trim()
                 .ifBlank { DEFAULT_AGENT_NAME }
+            agentApiToken = configRepository.agentApiToken.first().trim()
             statusText = configRepository.statusText.first().trim()
             excludedPackages = configRepository.excludedPackages.first()
             backendWebSocketUrl = toAgentWebSocketUrl(savedBackendUrl)
             AgentRuntimeState.appendLog("Using agent name: $agentName")
+            if (agentApiToken.isEmpty()) {
+                AgentRuntimeState.onError("Agent API token is empty. Stop and start the agent again.")
+                stopAgentService()
+                return@launch
+            }
             AgentRuntimeState.appendLog("Using status text: ${statusText.ifEmpty { "(empty)" }}")
             AgentRuntimeState.appendLog(
                 "Excluded packages: ${excludedPackages.joinToString().ifEmpty { "(none)" }}"
@@ -206,7 +213,7 @@ class AgentForegroundService : Service() {
                 }
 
                 if (!webSocketClient.isConnected()) {
-                    webSocketClient.connect(targetUrl) {
+                    webSocketClient.connect(targetUrl, agentApiToken) {
                         sendStatusPayload()
                     }
                     delay(RECONNECT_DELAY_MS)
@@ -339,7 +346,11 @@ class AgentForegroundService : Service() {
             }
 
             "ws", "wss" -> {
-                val path = uri.path?.ifBlank { "/" } ?: "/"
+                val path = when {
+                    uri.path.isNullOrBlank() || uri.path == "/" -> "/ws/agent"
+                    uri.path == "/ws/agent" -> "/ws/agent"
+                    else -> "${uri.path.trimEnd('/')}/ws/agent"
+                }
                 URI(scheme, uri.userInfo, host, port, path, query, null).toString()
             }
 

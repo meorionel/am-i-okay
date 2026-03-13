@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { getOnlineMaxConnections, isOnlineApiEnabled } from "@/src/lib/server/env";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,14 @@ function broadcastOnlineCount(): void {
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
+	if (!isOnlineApiEnabled()) {
+		return new Response("Not Found", { status: 404 });
+	}
+
+	if (onlineClients.size >= getOnlineMaxConnections()) {
+		return new Response("Too Many Connections", { status: 429 });
+	}
+
 	let controllerRef: OnlineStreamController | null = null;
 
 	const removeClient = () => {

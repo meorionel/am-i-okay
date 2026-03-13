@@ -58,23 +58,63 @@ export class WebSocketHub {
       return;
     }
 
+    const agentIdentity = ws.data.agent;
+    if (!agentIdentity) {
+      this.sendError(ws, "missing authenticated agent identity");
+      ws.close(1008, "missing agent identity");
+      return;
+    }
+
     if (parsed.data.type === "activity") {
       const event = parsed.data.payload;
-      this.trackAgentDevice(ws, event.deviceId);
-      this.store.upsert(event);
-      this.broadcastActivity(event);
+      if (
+        event.deviceId !== agentIdentity.deviceId ||
+        event.agentName !== agentIdentity.agentName ||
+        (agentIdentity.platform && event.platform !== agentIdentity.platform)
+      ) {
+        this.sendError(ws, "agent identity mismatch");
+        ws.close(1008, "agent identity mismatch");
+        return;
+      }
+
+      const trustedEvent: ActivityEvent = {
+        ...event,
+        deviceId: agentIdentity.deviceId,
+        agentName: agentIdentity.agentName,
+        platform: agentIdentity.platform ?? event.platform,
+      };
+      this.trackAgentDevice(ws, trustedEvent.deviceId);
+      this.store.upsert(trustedEvent);
+      this.broadcastActivity(trustedEvent);
       console.log(
-        `[ws] activity forwarded device=${event.deviceId} app=${event.app.name} eventId=${event.eventId}`,
+        `[ws] activity forwarded device=${trustedEvent.deviceId} app=${trustedEvent.app.name} eventId=${trustedEvent.eventId}`,
       );
       return;
     }
 
     const status = parsed.data.payload;
-    this.trackAgentDevice(ws, status.deviceId);
-    this.store.upsertStatus(status);
-    this.broadcastStatus(status);
+    if (
+      status.deviceId !== agentIdentity.deviceId ||
+      status.agentName !== agentIdentity.agentName ||
+      (agentIdentity.platform && status.platform !== agentIdentity.platform)
+    ) {
+      this.sendError(ws, "agent identity mismatch");
+      ws.close(1008, "agent identity mismatch");
+      return;
+    }
+
+    const trustedStatus = {
+      ...status,
+      deviceId: agentIdentity.deviceId,
+      agentName: agentIdentity.agentName,
+      platform: agentIdentity.platform ?? status.platform,
+    };
+
+    this.trackAgentDevice(ws, trustedStatus.deviceId);
+    this.store.upsertStatus(trustedStatus);
+    this.broadcastStatus(trustedStatus);
     console.log(
-      `[ws] status forwarded device=${status.deviceId} text=${JSON.stringify(status.statusText)}`,
+      `[ws] status forwarded device=${trustedStatus.deviceId} text=${JSON.stringify(trustedStatus.statusText)}`,
     );
   }
 

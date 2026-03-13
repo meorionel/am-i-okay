@@ -60,9 +60,6 @@ export interface FoodItem {
 
 export interface FoodCounterResponse {
 	foods: FoodItem[];
-	viewerFingerprint: string;
-	fingerprintSource: "header" | "body" | "derived";
-	databasePath?: string;
 }
 
 export interface DashboardErrorPayload {
@@ -83,10 +80,6 @@ function readString(value: unknown): string | null {
 
 function readNumber(value: unknown): number | undefined {
 	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
-}
-
-function readFingerprintSource(value: unknown): FoodCounterResponse["fingerprintSource"] | null {
-	return value === "header" || value === "body" || value === "derived" ? value : null;
 }
 
 export function parseDeviceStatus(input: unknown): DeviceStatus | null {
@@ -298,8 +291,6 @@ export function parseFoodCounterResponse(input: unknown): FoodCounterResponse {
 	if (!isRecord(input)) {
 		return {
 			foods: [],
-			viewerFingerprint: "",
-			fingerprintSource: "derived",
 		};
 	}
 
@@ -311,9 +302,6 @@ export function parseFoodCounterResponse(input: unknown): FoodCounterResponse {
 
 	return {
 		foods,
-		viewerFingerprint: readString(input.viewerFingerprint) ?? "",
-		fingerprintSource: readFingerprintSource(input.fingerprintSource) ?? "derived",
-		databasePath: readString(input.databasePath) ?? undefined,
 	};
 }
 

@@ -58,6 +58,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -109,6 +110,7 @@ fun AgentScreen(
     uiState: AgentUiState,
     onBackendUrlChanged: (String) -> Unit,
     onAgentNameChanged: (String) -> Unit,
+    onAgentApiTokenChanged: (String) -> Unit,
     onStatusTextChanged: (String) -> Unit,
     onUpdateStatusTextClicked: () -> Unit,
     onExcludedAppsFilterChanged: (String) -> Unit,
@@ -204,6 +206,7 @@ fun AgentScreen(
                         uiState = uiState,
                         onBackendUrlChanged = onBackendUrlChanged,
                         onAgentNameChanged = onAgentNameChanged,
+                        onAgentApiTokenChanged = onAgentApiTokenChanged,
                         onStatusTextChanged = onStatusTextChanged,
                         onUpdateStatusTextClicked = onUpdateStatusTextClicked,
                         onStartClicked = onStartClicked,
@@ -393,6 +396,7 @@ private fun ControlPage(
     uiState: AgentUiState,
     onBackendUrlChanged: (String) -> Unit,
     onAgentNameChanged: (String) -> Unit,
+    onAgentApiTokenChanged: (String) -> Unit,
     onStatusTextChanged: (String) -> Unit,
     onUpdateStatusTextClicked: () -> Unit,
     onStartClicked: () -> Unit,
@@ -419,6 +423,13 @@ private fun ControlPage(
                 label = "Agent Name",
                 value = uiState.agentNameInput,
                 onValueChange = onAgentNameChanged
+            )
+        }
+        item {
+            LabeledField(
+                label = "Agent API Token",
+                value = uiState.agentApiTokenInput,
+                onValueChange = onAgentApiTokenChanged
             )
         }
         item {

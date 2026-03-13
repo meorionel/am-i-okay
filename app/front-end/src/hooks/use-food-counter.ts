@@ -5,7 +5,6 @@ import { gooeyToast } from "goey-toast";
 import { FoodRateLimitError, fetchFoodCounter, feedFood } from "@/src/lib/api";
 import type { FoodItem } from "@/src/types/activity";
 
-const STORAGE_KEY = "amiokay.browser-fingerprint.v1";
 const FEED_COOLDOWN_MS = 3_000;
 const FOOD_POLL_INTERVAL_MS = 2_500;
 const FOOD_FALL_DURATION_MS = 3_200;
@@ -20,11 +19,6 @@ export interface FallingFood {
 	rotation: number;
 	startY: number;
 	endY: number;
-}
-
-interface FingerprintState {
-	value: string;
-	source: "header" | "body" | "derived";
 }
 
 function createFoodDrops(foods: FoodItem[], previousFoods: FoodItem[]): FallingFood[] {
@@ -59,68 +53,12 @@ function createFoodDrops(foods: FoodItem[], previousFoods: FoodItem[]): FallingF
 	return drops;
 }
 
-function readStoredFingerprint(): string | null {
-	if (typeof window === "undefined") {
-		return null;
-	}
-
-	try {
-		const value = window.localStorage.getItem(STORAGE_KEY);
-		return value && value.trim().length > 0 ? value : null;
-	} catch {
-		return null;
-	}
-}
-
-function collectBrowserSeed(): string {
-	if (typeof window === "undefined") {
-		return "server";
-	}
-
-	return JSON.stringify({
-		userAgent: window.navigator.userAgent,
-		language: window.navigator.language,
-		languages: window.navigator.languages,
-		platform: window.navigator.platform,
-		timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-		hardwareConcurrency: window.navigator.hardwareConcurrency ?? 0,
-		colorDepth: window.screen.colorDepth,
-		pixelDepth: window.screen.pixelDepth,
-		width: window.screen.width,
-		height: window.screen.height,
-		pixelRatio: window.devicePixelRatio,
-	});
-}
-
-async function sha256(input: string): Promise<string> {
-	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
-	return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-async function getOrCreateFingerprint(): Promise<string> {
-	const stored = readStoredFingerprint();
-	if (stored) {
-		return stored;
-	}
-
-	const generated = await sha256(collectBrowserSeed());
-
-	try {
-		window.localStorage.setItem(STORAGE_KEY, generated);
-	} catch {
-		// Ignore storage failures and keep the in-memory fingerprint.
-	}
-
-	return generated;
-}
-
 export function useFoodCounter(): {
 	foods: FoodItem[];
 	fallingFoods: FallingFood[];
 	isLoading: boolean;
 	isSubmitting: boolean;
 	activeFoodId: number | null;
-	fingerprint: FingerprintState | null;
 	feed: (foodId: number) => Promise<void>;
 } {
 	const [foods, setFoods] = useState<FoodItem[]>([]);
@@ -128,8 +66,6 @@ export function useFoodCounter(): {
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [activeFoodId, setActiveFoodId] = useState<number | null>(null);
-	const [fingerprint, setFingerprint] = useState<FingerprintState | null>(null);
-	const fingerprintRef = useRef<string | null>(null);
 	const lastFeedAttemptAtRef = useRef<number>(0);
 	const foodsRef = useRef<FoodItem[]>([]);
 
@@ -153,23 +89,13 @@ export function useFoodCounter(): {
 
 		const bootstrap = async (): Promise<void> => {
 			try {
-				const nextFingerprint = await getOrCreateFingerprint();
-				if (!isActive) {
-					return;
-				}
-
-				fingerprintRef.current = nextFingerprint;
-				const response = await fetchFoodCounter(nextFingerprint);
+				const response = await fetchFoodCounter("");
 				if (!isActive) {
 					return;
 				}
 
 				setFoods(response.foods);
 				foodsRef.current = response.foods;
-				setFingerprint({
-					value: response.viewerFingerprint || nextFingerprint,
-					source: response.fingerprintSource,
-				});
 			} catch (error) {
 				console.warn("[food] failed to bootstrap counter", error);
 			} finally {
@@ -182,12 +108,11 @@ export function useFoodCounter(): {
 		void bootstrap();
 
 		const pollTimer = window.setInterval(() => {
-			const currentFingerprint = fingerprintRef.current;
-			if (!isActive || !currentFingerprint) {
+			if (!isActive) {
 				return;
 			}
 
-			void fetchFoodCounter(currentFingerprint)
+			void fetchFoodCounter("")
 				.then((response) => {
 					if (!isActive) {
 						return;
@@ -200,10 +125,6 @@ export function useFoodCounter(): {
 
 					foodsRef.current = response.foods;
 					setFoods(response.foods);
-					setFingerprint({
-						value: response.viewerFingerprint || currentFingerprint,
-						source: response.fingerprintSource,
-					});
 				})
 				.catch((error) => {
 					console.warn("[food] failed to poll counter", error);
@@ -228,22 +149,16 @@ export function useFoodCounter(): {
 			return;
 		}
 
-		const currentFingerprint = fingerprintRef.current ?? (await getOrCreateFingerprint());
-		fingerprintRef.current = currentFingerprint;
 		lastFeedAttemptAtRef.current = Date.now();
 
 		setIsSubmitting(true);
 		setActiveFoodId(foodId);
 
 		try {
-			const response = await feedFood(foodId, currentFingerprint);
+			const response = await feedFood(foodId, "");
 			const previousFoods = foodsRef.current;
 			setFoods(response.foods);
 			foodsRef.current = response.foods;
-			setFingerprint({
-				value: response.viewerFingerprint || currentFingerprint,
-				source: response.fingerprintSource,
-			});
 			spawnDrops(response.foods, previousFoods);
 
 			const activeFood = response.foods.find((item) => item.id === foodId);
@@ -273,7 +188,6 @@ export function useFoodCounter(): {
 		isLoading,
 		isSubmitting,
 		activeFoodId,
-		fingerprint,
 		feed,
 	};
 }

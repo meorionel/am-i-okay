@@ -46,6 +46,7 @@ class MainActivity : ComponentActivity() {
                         uiState = viewModel.uiState,
                         onBackendUrlChanged = viewModel::onBackendUrlChanged,
                         onAgentNameChanged = viewModel::onAgentNameChanged,
+                        onAgentApiTokenChanged = viewModel::onAgentApiTokenChanged,
                         onStatusTextChanged = viewModel::onStatusTextChanged,
                         onUpdateStatusTextClicked = viewModel::onUpdateStatusTextClicked,
                         onExcludedAppsFilterChanged = viewModel::onExcludedAppsFilterChanged,

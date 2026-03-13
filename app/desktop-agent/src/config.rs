@@ -2,7 +2,9 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use anyhow::{anyhow, Result};
 use tracing::{warn, error};
+use url::Url;
 
 use serde::{Deserialize, Serialize};
 
@@ -21,16 +23,18 @@ pub struct Config {
     pub server_ws_url: String,
     pub device_id: String,
     pub agent_name: String,
+    pub api_token: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct StoredConfig {
     server_ws_url: String,
     device_id: String,
+    api_token: String,
 }
 
 impl Config {
-    pub fn from_prompt() -> io::Result<Self> {
+    pub fn from_prompt() -> Result<Self> {
         let config_path = config_file_path();
         let stored_config = load_stored_config(&config_path);
 
@@ -40,16 +44,18 @@ impl Config {
                 let config = StoredConfig {
                     server_ws_url: default_server_ws_url(),
                     device_id: default_device_id(),
+                    api_token: default_agent_api_token(),
                 };
                 save_stored_config(&config_path, &config);
                 config
             });
 
             return Ok(Self {
-                server_ws_url: normalize_server_ws_url(stored_config.server_ws_url),
+                server_ws_url: normalize_server_ws_url(stored_config.server_ws_url)?,
                 device_id: stored_config.device_id,
                 agent_name: env::var("AGENT_NAME")
                     .unwrap_or_else(|_| DESKTOP_AGENT_NAME.to_string()),
+                api_token: stored_config.api_token,
             });
         }
 
@@ -64,12 +70,18 @@ impl Config {
             .map(|config| config.device_id.clone())
             .unwrap_or_else(default_device_id);
         let device_id = prompt_device_id(&default_device_id)?;
+        let default_api_token = stored_config
+            .as_ref()
+            .map(|config| config.api_token.clone())
+            .unwrap_or_else(default_agent_api_token);
+        let api_token = prompt_agent_api_token(&default_api_token)?;
 
         save_stored_config(
             &config_path,
             &StoredConfig {
                 server_ws_url: server_ws_url.clone(),
                 device_id: device_id.clone(),
+                api_token: api_token.clone(),
             },
         );
 
@@ -77,15 +89,16 @@ impl Config {
             server_ws_url,
             device_id,
             agent_name: env::var("AGENT_NAME").unwrap_or_else(|_| DESKTOP_AGENT_NAME.to_string()),
+            api_token,
         })
     }
 }
 
-fn normalize_server_ws_url(url: String) -> String {
+fn normalize_server_ws_url(url: String) -> Result<String> {
     let trimmed = url.trim().trim_end_matches('/').to_string();
 
     if let Some(prefix) = trimmed.strip_suffix("/ws/agent") {
-        return format!("{prefix}/ws/agent");
+        return validate_server_ws_url(format!("{prefix}/ws/agent"));
     }
 
     if let Some(prefix) = trimmed.strip_suffix("/ws/dashboard") {
@@ -95,22 +108,60 @@ fn normalize_server_ws_url(url: String) -> String {
             corrected = %corrected,
             "AGENT_SERVER_WS_URL points to /ws/dashboard; auto-corrected to /ws/agent"
         );
-        return corrected;
+        return validate_server_ws_url(corrected);
     }
 
     if trimmed.starts_with("http://") {
-        return format!("ws://{}/ws/agent", trimmed.trim_start_matches("http://"));
+        return validate_server_ws_url(format!(
+            "ws://{}/ws/agent",
+            trimmed.trim_start_matches("http://")
+        ));
     }
 
     if trimmed.starts_with("https://") {
-        return format!("wss://{}/ws/agent", trimmed.trim_start_matches("https://"));
+        return validate_server_ws_url(format!(
+            "wss://{}/ws/agent",
+            trimmed.trim_start_matches("https://")
+        ));
     }
 
     if trimmed.starts_with("ws://") || trimmed.starts_with("wss://") {
-        return format!("{trimmed}/ws/agent");
+        return validate_server_ws_url(format!("{trimmed}/ws/agent"));
     }
 
-    format!("ws://{trimmed}/ws/agent")
+    validate_server_ws_url(format!("ws://{trimmed}/ws/agent"))
+}
+
+fn validate_server_ws_url(url: String) -> Result<String> {
+    let allow_insecure_localhost = env::var("ALLOW_INSECURE_LOCALHOST")
+        .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+
+    validate_server_ws_url_with_policy(url, allow_insecure_localhost)
+}
+
+fn validate_server_ws_url_with_policy(
+    url: String,
+    allow_insecure_localhost: bool,
+) -> Result<String> {
+    let parsed = Url::parse(&url).map_err(|err| anyhow!("invalid backend url: {err}"))?;
+    let Some(host) = parsed.host_str() else {
+        return Err(anyhow!("backend url must include a host"));
+    };
+
+    let is_local = matches!(host, "127.0.0.1" | "localhost" | "::1") || host.ends_with(".localhost");
+
+    if parsed.scheme() == "ws" && !(is_local && allow_insecure_localhost) {
+        return Err(anyhow!(
+            "non-local or production agent URLs must use wss://; set ALLOW_INSECURE_LOCALHOST=true only for localhost development"
+        ));
+    }
+
+    if parsed.path() != "/ws/agent" {
+        return Err(anyhow!("agent websocket path must resolve to /ws/agent"));
+    }
+
+    Ok(parsed.to_string())
 }
 
 fn config_file_path() -> PathBuf {
@@ -184,7 +235,7 @@ fn prompt_server_ws_url(default_value: &str) -> io::Result<String> {
         input
     };
 
-    Ok(normalize_server_ws_url(raw))
+    normalize_server_ws_url(raw).map_err(io::Error::other)
 }
 
 fn prompt_device_id(default_value: &str) -> io::Result<String> {
@@ -202,4 +253,52 @@ fn prompt_device_id(default_value: &str) -> io::Result<String> {
     }
 
     Ok(trimmed.to_string())
+}
+
+fn default_agent_api_token() -> String {
+    env::var("AGENT_API_TOKEN").unwrap_or_else(|_| "dev-agent-token".to_string())
+}
+
+fn prompt_agent_api_token(default_value: &str) -> io::Result<String> {
+    let mut stdout = io::stdout();
+    writeln!(stdout, "Please enter agent API token")?;
+    write!(stdout, "Agent API token [{default_value}]: ")?;
+    stdout.flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        if default_value.trim().is_empty() {
+            return Err(io::Error::other("agent API token is required"));
+        }
+
+        return Ok(default_value.to_string());
+    }
+
+    Ok(trimmed.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_server_ws_url_with_policy;
+
+    #[test]
+    fn rejects_non_local_cleartext_urls() {
+        let result = validate_server_ws_url_with_policy(
+            "ws://example.com/ws/agent".to_string(),
+            false,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn allows_local_cleartext_when_explicitly_enabled() {
+        let result = validate_server_ws_url_with_policy(
+            "ws://127.0.0.1:3000/ws/agent".to_string(),
+            true,
+        );
+        assert!(result.is_ok());
+    }
 }

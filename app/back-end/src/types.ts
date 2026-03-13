@@ -77,9 +77,6 @@ export interface FoodCounterPayload {
     totalCount: number;
     viewerCount: number;
   }[];
-  viewerFingerprint: string;
-  fingerprintSource: "header" | "body" | "derived";
-  databasePath: string;
 }
 
 export interface ActivityBroadcastMessage {
@@ -110,4 +107,10 @@ export type ClientRole = "agent" | "dashboard";
 export interface WsClientData {
   role: ClientRole;
   connectionId: string;
+  agent?: {
+    token: string;
+    deviceId: string;
+    agentName: string;
+    platform?: Platform;
+  };
 }

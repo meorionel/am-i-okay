@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 data class AgentUiState(
     val backendUrlInput: String = "",
     val agentNameInput: String = "",
+    val agentApiTokenInput: String = "",
     val statusTextInput: String = "",
     val installedApps: List<InstalledAppOption> = emptyList(),
     val selectedExcludedPackages: Set<String> = emptySet(),
@@ -24,6 +25,7 @@ data class AgentUiState(
     val excludedAppsFilterInput: String = "",
     val savedBackendUrl: String = "",
     val savedAgentName: String = "",
+    val savedAgentApiToken: String = "",
     val savedStatusText: String = "",
     val isServiceRunning: Boolean = false,
     val connectionStatus: String = AgentConnectionState.DISCONNECTED.name,
@@ -41,6 +43,7 @@ class AgentViewModel(
 
     private var inputHydratedFromStorage = false
     private var agentNameInputHydratedFromStorage = false
+    private var agentApiTokenInputHydratedFromStorage = false
     private var statusTextInputHydratedFromStorage = false
     private var excludedPackagesHydratedFromStorage = false
 
@@ -48,6 +51,7 @@ class AgentViewModel(
         loadInstalledApps()
         observeSavedBackendUrl()
         observeSavedAgentName()
+        observeSavedAgentApiToken()
         observeSavedStatusText()
         observeExcludedPackages()
         observeRuntimeStatus()
@@ -74,6 +78,13 @@ class AgentViewModel(
         )
     }
 
+    fun onAgentApiTokenChanged(value: String) {
+        uiState = uiState.copy(
+            agentApiTokenInput = value,
+            message = null
+        )
+    }
+
     fun onExcludedAppsFilterChanged(value: String) {
         uiState = uiState.copy(
             excludedAppsFilterInput = value
@@ -94,6 +105,7 @@ class AgentViewModel(
     fun onStartClicked() {
         val currentBackendUrl = uiState.backendUrlInput
         val currentAgentName = uiState.agentNameInput
+        val currentAgentApiToken = uiState.agentApiTokenInput
         val currentStatusText = uiState.statusTextInput
         val currentExcludedPackages = uiState.selectedExcludedPackages
         viewModelScope.launch {
@@ -101,6 +113,7 @@ class AgentViewModel(
                 val result = agentController.startAgent(
                     currentBackendUrl,
                     currentAgentName,
+                    currentAgentApiToken,
                     currentStatusText,
                     currentExcludedPackages
                 )
@@ -111,6 +124,8 @@ class AgentViewModel(
                         savedBackendUrl = result.savedBackendUrl,
                         agentNameInput = result.savedAgentName,
                         savedAgentName = result.savedAgentName,
+                        agentApiTokenInput = result.savedAgentApiToken,
+                        savedAgentApiToken = result.savedAgentApiToken,
                         statusTextInput = result.savedStatusText,
                         savedStatusText = result.savedStatusText,
                         selectedExcludedPackages = result.savedExcludedPackages,
@@ -219,6 +234,22 @@ class AgentViewModel(
                     }
                 )
                 agentNameInputHydratedFromStorage = true
+            }
+        }
+    }
+
+    private fun observeSavedAgentApiToken() {
+        viewModelScope.launch {
+            agentController.agentApiToken.collect { storedAgentApiToken ->
+                uiState = uiState.copy(
+                    savedAgentApiToken = storedAgentApiToken,
+                    agentApiTokenInput = if (agentApiTokenInputHydratedFromStorage) {
+                        uiState.agentApiTokenInput
+                    } else {
+                        storedAgentApiToken
+                    }
+                )
+                agentApiTokenInputHydratedFromStorage = true
             }
         }
     }

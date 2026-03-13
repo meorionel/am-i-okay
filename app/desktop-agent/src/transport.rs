@@ -4,13 +4,14 @@ use anyhow::Result;
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 use tokio::time::sleep;
-use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tokio_tungstenite::{connect_async, tungstenite::client::IntoClientRequest, tungstenite::Message};
 use tracing::{info, warn};
 
 use crate::event::ActivityEnvelope;
 
 pub async fn run_transport(
     url: String,
+    api_token: String,
     mut rx: mpsc::UnboundedReceiver<ActivityEnvelope>,
 ) -> Result<()> {
     let mut reconnect_delay = Duration::from_secs(2);
@@ -20,7 +21,13 @@ pub async fn run_transport(
 
     loop {
         info!(%url, "connecting websocket");
-        match connect_async(&url).await {
+        let mut request = url.clone().into_client_request()?;
+        request.headers_mut().insert(
+            "Authorization",
+            format!("Bearer {api_token}").parse()?,
+        );
+
+        match connect_async(request).await {
             Ok((ws_stream, _)) => {
                 info!("websocket connected");
                 reconnect_delay = Duration::from_secs(2);

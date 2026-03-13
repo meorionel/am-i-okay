@@ -24,7 +24,7 @@ class AgentWebSocketClient {
     @Volatile
     private var targetUrl: String? = null
 
-    fun connect(url: String, onOpen: (() -> Unit)? = null) {
+    fun connect(url: String, bearerToken: String, onOpen: (() -> Unit)? = null) {
         if (targetUrl == url && (connected || webSocket != null)) {
             return
         }
@@ -36,6 +36,7 @@ class AgentWebSocketClient {
 
         val request = Request.Builder()
             .url(url)
+            .header("Authorization", "Bearer $bearerToken")
             .build()
 
         webSocket = okHttpClient.newWebSocket(request, object : WebSocketListener() {

@@ -36,7 +36,11 @@ async fn main() -> Result<()> {
 
     let (tx, rx) = mpsc::unbounded_channel();
 
-    let _transport_task = tokio::spawn(transport::run_transport(cfg.server_ws_url.clone(), rx));
+    let _transport_task = tokio::spawn(transport::run_transport(
+        cfg.server_ws_url.clone(),
+        cfg.api_token.clone(),
+        rx,
+    ));
 
     platform::run_foreground_watcher(cfg.device_id.clone(), cfg.agent_name.clone(), tx)?;
     Ok(())

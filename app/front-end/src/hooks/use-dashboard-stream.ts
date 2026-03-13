@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
 import { fetchCurrentDevices } from "@/src/lib/api";
 import { toEpochMs } from "@/src/lib/format";
-import { DashboardWebSocketClient, type ConnectionStatus } from "@/src/lib/ws";
 import type { ActivityEvent, DeviceStatus, RecentActivity } from "@/src/types/activity";
+import type { ConnectionStatus } from "@/src/lib/ws";
 
 type DeviceState = Record<string, ActivityEvent>;
 
@@ -64,33 +64,7 @@ function resolveLastEventAt(devices: ActivityEvent[]): number | null {
 	return devices.map((event) => eventTsMs(event)).reduce((max, value) => (value > max ? value : max), 0);
 }
 
-const MAX_RECENT_ACTIVITIES = 10;
-
-function toRecentActivity(event: ActivityEvent): RecentActivity {
-	return {
-		eventId: event.eventId,
-		ts: event.ts,
-		deviceId: event.deviceId,
-		agentName: event.agentName,
-		platform: event.platform,
-		kind: event.kind,
-		app: {
-			...event.app,
-		},
-		windowTitle: event.windowTitle,
-		source: event.source,
-	};
-}
-
-function mergeRecentActivities(current: RecentActivity[], nextActivity: RecentActivity): RecentActivity[] {
-	const nextKey = nextActivity.eventId ?? `${nextActivity.deviceId}-${nextActivity.ts}`;
-	const deduped = current.filter((activity) => {
-		const key = activity.eventId ?? `${activity.deviceId}-${activity.ts}`;
-		return key !== nextKey;
-	});
-
-	return [nextActivity, ...deduped].sort((a, b) => (toEpochMs(b.ts) ?? 0) - (toEpochMs(a.ts) ?? 0)).slice(0, MAX_RECENT_ACTIVITIES);
-}
+const POLL_INTERVAL_MS = 3_000;
 
 export function useDashboardStream(): {
 	devices: ActivityEvent[];
@@ -133,6 +107,7 @@ export function useDashboardStream(): {
 				setLatestStatus(dashboard.latestStatus);
 				setRecentActivities(dashboard.recentActivities);
 				safeSetLastEventAt(resolveLastEventAt(dashboard.devices));
+				setConnectionStatus("connected");
 			} finally {
 				if (isActive) {
 					setIsBootstrapping(false);
@@ -141,44 +116,35 @@ export function useDashboardStream(): {
 		};
 
 		void bootstrap();
+		const pollTimer = window.setInterval(() => {
+			void fetchCurrentDevices()
+				.then((dashboard) => {
+					if (!isActive) {
+						return;
+					}
 
-		const wsClient = new DashboardWebSocketClient({
-			onStatusChange: (status) => {
-				if (isActive) {
-					setConnectionStatus(status);
-				}
-			},
-			onSnapshot: (devices, nextLatestStatus) => {
-				safeDispatch({ type: "replace", devices });
-				if (isActive) {
-					setLatestStatus(nextLatestStatus);
-				}
-				safeSetLastEventAt(resolveLastEventAt(devices) ?? Date.now());
-			},
-			onActivity: (event) => {
-				safeDispatch({ type: "upsert", event });
-				if (isActive) {
-					setRecentActivities((current) => mergeRecentActivities(current, toRecentActivity(event)));
-				}
-				safeSetLastEventAt(eventTsMs(event) || Date.now());
-			},
-			onStatus: (status) => {
-				if (isActive) {
-					setLatestStatus((current) => {
-						return shouldReplaceStatus(current, status) ? status : current;
-					});
-				}
-			},
-			onError: (message) => {
-				console.warn("[ws]", message);
-			},
-		});
-
-		wsClient.connect();
+					const nextDevices = dashboard.devices;
+					safeDispatch({ type: "replace", devices: nextDevices });
+					setLatestStatus((current) =>
+						shouldReplaceStatus(current, dashboard.latestStatus)
+							? dashboard.latestStatus
+							: current,
+					);
+					setRecentActivities(dashboard.recentActivities);
+					safeSetLastEventAt(resolveLastEventAt(nextDevices));
+					setConnectionStatus("connected");
+				})
+				.catch((error) => {
+					if (isActive) {
+						setConnectionStatus("error");
+					}
+					console.warn("[poll]", error);
+				});
+		}, POLL_INTERVAL_MS);
 
 		return () => {
 			isActive = false;
-			wsClient.disconnect();
+			window.clearInterval(pollTimer);
 		};
 	}, []);
 

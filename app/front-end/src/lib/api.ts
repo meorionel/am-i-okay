@@ -1,4 +1,3 @@
-import { getApiBaseUrl } from "@/src/lib/env";
 import {
 	parseCurrentDashboardResponse,
 	parseFoodCounterResponse,
@@ -6,9 +5,9 @@ import {
 	type FoodCounterResponse,
 } from "@/src/types/activity";
 
-const CURRENT_DEVICES_PATH = "/api/current";
-const FOOD_COUNTER_PATH = "/api/food";
-const FOOD_FEED_PATH = "/api/food/feed";
+const CURRENT_DEVICES_PATH = "/api/dashboard/current";
+const FOOD_COUNTER_PATH = "/api/dashboard/food";
+const FOOD_FEED_PATH = "/api/dashboard/feed";
 
 export class FoodRateLimitError extends Error {
 	constructor() {
@@ -26,7 +25,7 @@ function toErrorMessage(error: unknown): string {
 }
 
 export async function fetchCurrentDevices(): Promise<CurrentDevicesResponse> {
-	const url = `${getApiBaseUrl()}${CURRENT_DEVICES_PATH}`;
+	const url = CURRENT_DEVICES_PATH;
 
 	try {
 		const response = await fetch(url, {
@@ -59,7 +58,7 @@ export async function fetchCurrentDevices(): Promise<CurrentDevicesResponse> {
 }
 
 export async function fetchFoodCounter(fingerprint: string): Promise<FoodCounterResponse> {
-	const url = `${getApiBaseUrl()}${FOOD_COUNTER_PATH}`;
+	const url = FOOD_COUNTER_PATH;
 
 	try {
 		const response = await fetch(url, {
@@ -67,7 +66,6 @@ export async function fetchFoodCounter(fingerprint: string): Promise<FoodCounter
 			cache: "no-store",
 			headers: {
 				Accept: "application/json",
-				"x-browser-fingerprint": fingerprint,
 			},
 		});
 
@@ -84,7 +82,7 @@ export async function fetchFoodCounter(fingerprint: string): Promise<FoodCounter
 }
 
 export async function feedFood(foodId: number, fingerprint: string): Promise<FoodCounterResponse> {
-	const url = `${getApiBaseUrl()}${FOOD_FEED_PATH}`;
+	const url = FOOD_FEED_PATH;
 
 	try {
 		const response = await fetch(url, {
@@ -93,7 +91,6 @@ export async function feedFood(foodId: number, fingerprint: string): Promise<Foo
 			headers: {
 				Accept: "application/json",
 				"Content-Type": "application/json",
-				"x-browser-fingerprint": fingerprint,
 			},
 			body: JSON.stringify({
 				id: foodId,

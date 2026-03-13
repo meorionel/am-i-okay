@@ -22,6 +22,10 @@ class AgentConfigRepository(
         preferences[AppPreferences.AgentName].orEmpty()
     }
 
+    val agentApiToken: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[AppPreferences.AgentApiToken].orEmpty()
+    }
+
     val statusText: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[AppPreferences.StatusText].orEmpty()
     }
@@ -35,6 +39,12 @@ class AgentConfigRepository(
     suspend fun saveAgentName(name: String) {
         context.dataStore.edit { preferences ->
             preferences[AppPreferences.AgentName] = name
+        }
+    }
+
+    suspend fun saveAgentApiToken(token: String) {
+        context.dataStore.edit { preferences ->
+            preferences[AppPreferences.AgentApiToken] = token
         }
     }
 
