@@ -51,6 +51,20 @@ export interface CurrentDevicesResponse {
 	recentActivities: RecentActivity[];
 }
 
+export interface FoodItem {
+	id: number;
+	emoji: string;
+	totalCount: number;
+	viewerCount: number;
+}
+
+export interface FoodCounterResponse {
+	foods: FoodItem[];
+	viewerFingerprint: string;
+	fingerprintSource: "header" | "body" | "derived";
+	databasePath?: string;
+}
+
 export interface DashboardErrorPayload {
 	message: string;
 }
@@ -69,6 +83,10 @@ function readString(value: unknown): string | null {
 
 function readNumber(value: unknown): number | undefined {
 	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function readFingerprintSource(value: unknown): FoodCounterResponse["fingerprintSource"] | null {
+	return value === "header" || value === "body" || value === "derived" ? value : null;
 }
 
 export function parseDeviceStatus(input: unknown): DeviceStatus | null {
@@ -274,6 +292,51 @@ export function parseRecentActivity(input: unknown): RecentActivity | null {
 	}
 
 	return activity;
+}
+
+export function parseFoodCounterResponse(input: unknown): FoodCounterResponse {
+	if (!isRecord(input)) {
+		return {
+			foods: [],
+			viewerFingerprint: "",
+			fingerprintSource: "derived",
+		};
+	}
+
+	const foods = Array.isArray(input.foods)
+		? input.foods
+				.map((item) => parseFoodItem(item))
+				.filter((item): item is FoodItem => item !== null)
+		: [];
+
+	return {
+		foods,
+		viewerFingerprint: readString(input.viewerFingerprint) ?? "",
+		fingerprintSource: readFingerprintSource(input.fingerprintSource) ?? "derived",
+		databasePath: readString(input.databasePath) ?? undefined,
+	};
+}
+
+function parseFoodItem(input: unknown): FoodItem | null {
+	if (!isRecord(input)) {
+		return null;
+	}
+
+	const id = readNumber(input.id);
+	const emoji = readString(input.emoji);
+	const totalCount = readNumber(input.totalCount);
+	const viewerCount = readNumber(input.viewerCount);
+
+	if (id === undefined || !emoji || totalCount === undefined || viewerCount === undefined) {
+		return null;
+	}
+
+	return {
+		id,
+		emoji,
+		totalCount,
+		viewerCount,
+	};
 }
 
 export function parseDashboardMessage(input: unknown): DashboardMessage | null {

@@ -70,6 +70,18 @@ export interface SnapshotMessage {
   };
 }
 
+export interface FoodCounterPayload {
+  foods: {
+    id: number;
+    emoji: string;
+    totalCount: number;
+    viewerCount: number;
+  }[];
+  viewerFingerprint: string;
+  fingerprintSource: "header" | "body" | "derived";
+  databasePath: string;
+}
+
 export interface ActivityBroadcastMessage {
   type: "activity";
   payload: ActivityEvent;

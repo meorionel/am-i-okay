@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "goey-toast/styles.css";
+import { GooeyToastProvider } from "@/src/components/gooey-toast-provider";
 
 export const metadata: Metadata = {
 	title: "Am I Okay",
@@ -13,7 +15,10 @@ export default function RootLayout({
 }>) {
 	return (
 		<html lang="en">
-			<body className="antialiased">{children}</body>
+			<body className="antialiased">
+				{children}
+				<GooeyToastProvider />
+			</body>
 		</html>
 	);
 }

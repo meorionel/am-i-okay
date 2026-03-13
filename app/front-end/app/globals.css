@@ -26,3 +26,56 @@ body {
 	font-family: var(--font-geist-sans);
 	text-rendering: optimizeLegibility;
 }
+
+.gooey-timestamp {
+	display: none !important;
+}
+
+.food-fall-overlay {
+	position: fixed;
+	inset: 0;
+	pointer-events: none;
+	overflow: hidden;
+	z-index: 30;
+}
+
+.food-fall-item {
+	position: absolute;
+	top: 0;
+	display: inline-block;
+	line-height: 1;
+	will-change: translate, rotate, opacity;
+	text-shadow: 0 10px 18px rgba(120, 113, 108, 0.12);
+	translate: 0 var(--food-start-y, -120px);
+	rotate: 0deg;
+	opacity: 0.9;
+	animation:
+		food-fall 6000ms cubic-bezier(0.14, 0.7, 0.22, 1) forwards,
+		food-spin 3000ms linear forwards;
+}
+
+@keyframes food-fall {
+	0% {
+		translate: 0 var(--food-start-y, -120px);
+		opacity: 0.9;
+	}
+
+	90% {
+		opacity: 0.8;
+	}
+
+	100% {
+		translate: 0 var(--food-end-y, 80vh);
+		opacity: 0;
+	}
+}
+
+@keyframes food-spin {
+	0% {
+		rotate: 0deg;
+	}
+
+	100% {
+		rotate: var(--food-rotate, 360deg);
+	}
+}

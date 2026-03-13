@@ -4,6 +4,7 @@ import { PageLoading } from "./loading";
 import { ActiveDevicesSection } from "@/src/components/dashboard/active-devices-section";
 import { DashboardHeader } from "@/src/components/dashboard/dashboard-header";
 import { DeviceStatusSection } from "@/src/components/dashboard/device-status-section";
+import { FoodCounterSection } from "@/src/components/dashboard/food-counter-section";
 import { RecentActivitySection } from "@/src/components/dashboard/recent-activity-section";
 import { formatTimelineTime } from "@/src/components/dashboard/dashboard-utils";
 import { useDashboardStream } from "@/src/hooks/use-dashboard-stream";
@@ -23,6 +24,7 @@ export default function Home() {
 		<main className="min-h-screen bg-[linear-gradient(180deg,#fbfbf9_0%,#f5f5f1_42%,#efefe9_100%)] text-stone-700">
 			<div className="mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-16 sm:px-8 sm:py-20">
 				<DashboardHeader connectionStatus={connectionStatus} lastUpdated={lastUpdated} onlineCount={onlineCount} />
+				<FoodCounterSection />
 				<DeviceStatusSection latestStatus={latestStatus} />
 				<ActiveDevicesSection devices={devices} />
 				<RecentActivitySection activities={visibleTimeline} />
