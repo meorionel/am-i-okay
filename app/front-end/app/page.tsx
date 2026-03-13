@@ -6,16 +6,18 @@ import { DeviceStatusSection } from "@/src/components/dashboard/device-status-se
 import { RecentActivitySection } from "@/src/components/dashboard/recent-activity-section";
 import { formatTimelineTime } from "@/src/components/dashboard/dashboard-utils";
 import { useDashboardStream } from "@/src/hooks/use-dashboard-stream";
+import { useOnlineCount } from "@/src/hooks/use-online-count";
 
 export default function Home() {
 	const { devices, latestStatus, recentActivities, connectionStatus, lastEventAt } = useDashboardStream();
+	const onlineCount = useOnlineCount();
 	const visibleTimeline = recentActivities.slice(0, 4);
 	const lastUpdated = lastEventAt ? formatTimelineTime(new Date(lastEventAt).toISOString()) : null;
 
 	return (
 		<main className="min-h-screen bg-[linear-gradient(180deg,#fbfbf9_0%,#f5f5f1_42%,#efefe9_100%)] text-stone-700">
 			<div className="mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-16 sm:px-8 sm:py-20">
-				<DashboardHeader connectionStatus={connectionStatus} lastUpdated={lastUpdated} />
+				<DashboardHeader connectionStatus={connectionStatus} lastUpdated={lastUpdated} onlineCount={onlineCount} />
 				<DeviceStatusSection latestStatus={latestStatus} />
 				<ActiveDevicesSection devices={devices} />
 				<RecentActivitySection activities={visibleTimeline} />
