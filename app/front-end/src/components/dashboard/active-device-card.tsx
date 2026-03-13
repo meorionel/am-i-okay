@@ -24,9 +24,23 @@ function resolveDeviceIcon(deviceLabel: string): string {
 	return "uil:desktop";
 }
 
+function resolveSecondaryLine(device: ActivityEvent): string | null {
+	const platform = device.platform.trim().toLowerCase();
+
+	if (platform === "macos" || platform === "android") {
+		return device.app.id;
+	}
+
+	if (platform === "windows") {
+		return device.app.name;
+	}
+
+	return formatSecondaryLine(device);
+}
+
 export function ActiveDeviceCard({ device }: ActiveDeviceCardProps) {
 	const deviceLabel = formatDeviceLabel(device);
-	const secondaryLine = formatSecondaryLine(device);
+	const secondaryLine = resolveSecondaryLine(device);
 
 	return (
 		<div className="rounded-[1.8rem] border border-stone-200/80 bg-white/92 p-5 shadow-[0_16px_40px_rgba(120,113,108,0.07)] transition-shadow duration-200 hover:shadow-[0_18px_48px_rgba(120,113,108,0.10)] sm:p-6">
