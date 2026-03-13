@@ -11,14 +11,14 @@ export function RecentActivitySection({ activities }: RecentActivitySectionProps
 			<p className="text-[11px] font-semibold tracking-[0.28em] text-stone-400 uppercase sm:text-xs">最近活跃</p>
 			{activities.length > 0 ? (
 				<div className="relative mt-7 pl-8 sm:pl-10">
-					<div className="absolute left-3 top-3 bottom-4 w-px bg-stone-200 sm:left-3.5" />
+					<div className="absolute left-2 top-2 bottom-4 w-px bg-stone-200 sm:left-3.5" />
 					<div className="space-y-9">
 						{activities.map((event) => {
 							const secondaryLine = formatSecondaryLine(event);
 
 							return (
 								<article key={getActivityKey(event)} className="relative">
-									<span className="absolute -left-[1.45rem] top-1.5 h-3 w-3 rounded-full border-2 border-[#f5f5f0] bg-stone-200 sm:-left-8" />
+									<span className="absolute -left-7 top-0.5 h-2 w-2 rounded-full bg-stone-200 sm:-left-8" />
 									<p className="text-xs leading-none text-stone-400 sm:text-sm">
 										{event.displayTime ?? formatTimelineTime(event.ts)}
 									</p>
