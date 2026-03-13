@@ -3,6 +3,7 @@ package com.amiokay.androidagent
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -46,12 +47,16 @@ class MainActivity : ComponentActivity() {
                         onBackendUrlChanged = viewModel::onBackendUrlChanged,
                         onAgentNameChanged = viewModel::onAgentNameChanged,
                         onStatusTextChanged = viewModel::onStatusTextChanged,
+                        onUpdateStatusTextClicked = viewModel::onUpdateStatusTextClicked,
                         onExcludedAppsFilterChanged = viewModel::onExcludedAppsFilterChanged,
                         onExcludedPackageToggled = viewModel::onExcludedPackageToggled,
                         onStartClicked = viewModel::onStartClicked,
+                        onRestartClicked = viewModel::onRestartClicked,
                         onStopClicked = viewModel::onStopClicked,
+                        onSaveExcludedAppsClicked = viewModel::onSaveExcludedAppsClicked,
                         onClearLogsClicked = viewModel::onClearLogsClicked,
                         onOpenAccessibilitySettings = ::openAccessibilitySettings,
+                        onOpenExternalLink = ::openExternalLink,
                         onMessageConsumed = viewModel::onMessageConsumed
                     )
                 }
@@ -77,5 +82,11 @@ class MainActivity : ComponentActivity() {
 
     private fun openAccessibilitySettings() {
         startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+    }
+
+    private fun openExternalLink(url: String) {
+        startActivity(
+            Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        )
     }
 }

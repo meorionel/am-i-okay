@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Android Agent</string>
+    <string name="app_name">am i okay</string>
     <string name="notification_channel_name">Agent Service</string>
     <string name="notification_channel_description">Foreground service for activity monitoring</string>
     <string name="notification_title">Activity Agent Running</string>

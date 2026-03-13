@@ -3,6 +3,7 @@ package com.amiokay.androidagent.domain
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.drawable.Drawable
 import android.os.Build
 import androidx.core.content.ContextCompat
 import com.amiokay.androidagent.data.AgentConfigRepository
@@ -24,7 +25,8 @@ sealed interface AgentStartResult {
 
 data class InstalledAppOption(
     val packageName: String,
-    val appName: String
+    val appName: String,
+    val icon: Drawable?
 )
 
 class AgentController(
@@ -110,6 +112,35 @@ class AgentController(
         }
     }
 
+    suspend fun saveExcludedPackages(excludedPackages: Set<String>) {
+        val sanitizedExcludedPackages = excludedPackages
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toSet()
+        configRepository.saveExcludedPackages(sanitizedExcludedPackages)
+        AgentRuntimeState.appendLog(
+            "Saved excluded packages: ${
+                sanitizedExcludedPackages.joinToString().ifEmpty { "(none)" }
+            }"
+        )
+    }
+
+    suspend fun updateStatusText(rawStatusText: String): String {
+        val statusText = rawStatusText.trim()
+        configRepository.saveStatusText(statusText)
+        AgentRuntimeState.appendLog("Saved status text: ${statusText.ifEmpty { "(empty)" }}")
+
+        if (!isServiceRunning()) {
+            return "Status text saved"
+        }
+
+        val updateIntent = Intent(appContext, AgentForegroundService::class.java).apply {
+            action = AgentForegroundService.ACTION_UPDATE_STATUS_TEXT
+        }
+        appContext.startService(updateIntent)
+        return "Status text updated"
+    }
+
     fun stopAgent() {
         AgentRuntimeState.appendLog("Stopping foreground service")
         val stopIntent = Intent(appContext, AgentForegroundService::class.java).apply {
@@ -138,7 +169,8 @@ class AgentController(
             .map { applicationInfo ->
                 InstalledAppOption(
                     packageName = applicationInfo.packageName,
-                    appName = packageManager.getApplicationLabel(applicationInfo).toString()
+                    appName = packageManager.getApplicationLabel(applicationInfo).toString(),
+                    icon = packageManager.getApplicationIcon(applicationInfo)
                 )
             }
             .sortedWith(

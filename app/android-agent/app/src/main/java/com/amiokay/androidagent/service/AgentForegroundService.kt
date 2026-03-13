@@ -112,6 +112,11 @@ class AgentForegroundService : Service() {
                     START_NOT_STICKY
                 }
 
+                ACTION_UPDATE_STATUS_TEXT -> {
+                    refreshStatusTextAndSend()
+                    START_STICKY
+                }
+
                 ACTION_START, null -> {
                     startAsForeground()
                     AgentRuntimeState.onServiceStarted()
@@ -406,9 +411,20 @@ class AgentForegroundService : Service() {
         }.toString()
     }
 
+    private fun refreshStatusTextAndSend() {
+        serviceScope.launch {
+            statusText = configRepository.statusText.first().trim()
+            AgentRuntimeState.appendLog(
+                "Using status text: ${statusText.ifEmpty { "(empty)" }}"
+            )
+            sendStatusPayload()
+        }
+    }
+
     companion object {
         const val ACTION_START = "com.amiokay.androidagent.action.START"
         const val ACTION_STOP = "com.amiokay.androidagent.action.STOP"
+        const val ACTION_UPDATE_STATUS_TEXT = "com.amiokay.androidagent.action.UPDATE_STATUS_TEXT"
 
         private const val TAG = "AgentForegroundService"
         private const val DEFAULT_AGENT_NAME = "android-agent"

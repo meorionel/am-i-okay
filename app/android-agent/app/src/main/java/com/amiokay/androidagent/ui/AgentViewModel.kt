@@ -128,11 +128,38 @@ class AgentViewModel(
         }
     }
 
+    fun onUpdateStatusTextClicked() {
+        val currentStatusText = uiState.statusTextInput
+        viewModelScope.launch {
+            val message = agentController.updateStatusText(currentStatusText)
+            uiState = uiState.copy(
+                savedStatusText = currentStatusText.trim(),
+                message = message
+            )
+        }
+    }
+
+    fun onRestartClicked() {
+        agentController.stopAgent()
+        onStartClicked()
+    }
+
     fun onStopClicked() {
         agentController.stopAgent()
         uiState = uiState.copy(
             message = "Agent stopped"
         )
+    }
+
+    fun onSaveExcludedAppsClicked() {
+        val currentExcludedPackages = uiState.selectedExcludedPackages
+        viewModelScope.launch {
+            agentController.saveExcludedPackages(currentExcludedPackages)
+            uiState = uiState.copy(
+                savedExcludedPackages = currentExcludedPackages,
+                message = "App selection saved"
+            )
+        }
     }
 
     fun onClearLogsClicked() {
