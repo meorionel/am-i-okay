@@ -15,6 +15,7 @@ import {
   loadStoredConfig,
   parseAllowedOriginsInput,
   saveStoredConfig,
+  type StoredAgentConfig,
   type AgentPlatform,
   type RuntimeEnvironment,
   type StoredBackendConfig,
@@ -29,7 +30,7 @@ type MainAction =
   | "view"
   | "exit";
 
-type AgentAction = "default" | "bindings" | "clear-bindings" | "back";
+type AgentAction = "list" | "add" | "edit" | "remove" | "back";
 
 class ReturnToMainMenuError extends Error {
   constructor() {
@@ -144,24 +145,6 @@ function validatePort(value: string | undefined): string | undefined {
   return undefined;
 }
 
-function validateBindingsJson(value: string | undefined): string | undefined {
-  const raw = value?.trim() ?? "";
-  if (!raw) {
-    return undefined;
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      return "高级 Agent 绑定必须是 JSON 对象";
-    }
-  } catch {
-    return "高级 Agent 绑定必须是合法 JSON";
-  }
-
-  return undefined;
-}
-
 async function promptText(message: string, initialValue: string): Promise<string> {
   const value = await text({
     message,
@@ -239,32 +222,27 @@ async function promptServerConfig(
 }
 
 async function promptDefaultAgentConfig(
-  config: StoredBackendConfig,
-): Promise<StoredBackendConfig> {
-  const agentApiToken = await text({
-    message: "请输入默认 Agent Token",
-    initialValue: config.agentApiToken,
-    validate: (input) => {
-      if (config.env === "production") {
-        return validateRequired("默认 Agent Token", input);
-      }
-      return undefined;
-    },
+  initialAgent?: StoredAgentConfig,
+): Promise<StoredAgentConfig> {
+  const token = await text({
+    message: "请输入 Agent Token",
+    initialValue: initialAgent?.token ?? "",
+    validate: (input) => validateRequired("Agent Token", input),
   });
-  const nextAgentApiToken = unwrapSubmenuPrompt(agentApiToken);
+  const nextToken = unwrapSubmenuPrompt(token);
 
   const deviceId = await promptText(
-    "请输入默认 Agent 设备 ID",
-    config.agentAllowedDeviceId,
+    "请输入 Agent 设备 ID",
+    initialAgent?.deviceId ?? "",
   );
   const agentName = await promptText(
-    "请输入默认 Agent 名称",
-    config.agentAllowedAgentName,
+    "请输入 Agent 名称",
+    initialAgent?.agentName ?? "desktop-agent",
   );
 
   const platform = await select<AgentPlatform | "">({
-    message: "请选择默认 Agent 平台",
-    initialValue: config.agentAllowedPlatform,
+    message: "请选择 Agent 平台",
+    initialValue: initialAgent?.platform ?? "",
     options: [
       { value: "", label: "未设置", hint: "可选" },
       { value: "macos", label: "macOS" },
@@ -275,33 +253,19 @@ async function promptDefaultAgentConfig(
   const nextPlatform = unwrapSubmenuPrompt(platform);
 
   return {
-    ...config,
-    agentApiToken: nextAgentApiToken.trim(),
-    agentAllowedDeviceId: deviceId.trim(),
-    agentAllowedAgentName: agentName.trim(),
-    agentAllowedPlatform: nextPlatform,
+    token: nextToken.trim(),
+    deviceId: deviceId.trim(),
+    agentName: agentName.trim(),
+    platform: nextPlatform,
   };
 }
 
-async function promptAgentBindings(
-  config: StoredBackendConfig,
-): Promise<StoredBackendConfig> {
-  note(
-    config.agentTokenBindings.trim() || "当前没有高级 Agent 绑定 JSON。",
-    "当前高级 Agent 绑定",
-  );
-
-  const agentTokenBindings = await text({
-    message: "请输入高级 Agent 绑定 JSON，留空表示不配置",
-    initialValue: config.agentTokenBindings,
-    validate: validateBindingsJson,
-  });
-  const nextAgentTokenBindings = unwrapSubmenuPrompt(agentTokenBindings);
-
-  return {
-    ...config,
-    agentTokenBindings: nextAgentTokenBindings.trim(),
-  };
+function getAgentOptions(agents: StoredAgentConfig[]) {
+  return agents.map((agent, index) => ({
+    value: index,
+    label: `${agent.agentName} (${agent.deviceId})`,
+    hint: `token=${agent.token} platform=${agent.platform || "未设置"}`,
+  }));
 }
 
 async function promptAgentMenu(
@@ -313,9 +277,20 @@ async function promptAgentMenu(
     const action = await select<AgentAction>({
       message: "请选择 Agent 配置项",
       options: [
-        { value: "default", label: "配置默认 Agent", hint: "Token、设备、名称、平台" },
-        { value: "bindings", label: "配置高级 Agent 绑定", hint: "编辑 JSON" },
-        { value: "clear-bindings", label: "清空高级 Agent 绑定" },
+        { value: "list", label: "查看 Agent 列表" },
+        { value: "add", label: "添加 Agent" },
+        {
+          value: "edit",
+          label: "编辑 Agent",
+          hint: nextConfig.agents.length > 0 ? "修改已有 Agent" : "暂无 Agent",
+          disabled: nextConfig.agents.length === 0,
+        },
+        {
+          value: "remove",
+          label: "删除 Agent",
+          hint: nextConfig.agents.length > 0 ? "移除已有 Agent" : "暂无 Agent",
+          disabled: nextConfig.agents.length === 0,
+        },
         { value: "back", label: "返回上一级" },
       ],
     });
@@ -325,22 +300,59 @@ async function promptAgentMenu(
       return nextConfig;
     }
 
-    if (nextAction === "default") {
-      nextConfig = await promptDefaultAgentConfig(nextConfig);
-      await saveStoredConfig(nextConfig);
-      log.success("默认 Agent 配置已保存。");
+    if (nextAction === "list") {
+      note(
+        nextConfig.agents.length > 0
+          ? nextConfig.agents
+              .map(
+                (agent, index) =>
+                  `${index + 1}. ${agent.agentName}\nToken: ${agent.token}\n设备 ID: ${agent.deviceId}\n平台: ${agent.platform || "未设置"}`,
+              )
+              .join("\n\n")
+          : "当前还没有 Agent。",
+        "Agent 列表",
+      );
       continue;
     }
 
-    if (nextAction === "bindings") {
-      nextConfig = await promptAgentBindings(nextConfig);
+    if (nextAction === "add") {
+      const agent = await promptDefaultAgentConfig();
+      nextConfig = {
+        ...nextConfig,
+        agents: [...nextConfig.agents, agent],
+      };
       await saveStoredConfig(nextConfig);
-      log.success("高级 Agent 绑定已保存。");
+      log.success("Agent 已添加。");
       continue;
     }
 
+    if (nextAction === "edit") {
+      const agentIndex = await select<number>({
+        message: "请选择要编辑的 Agent",
+        options: getAgentOptions(nextConfig.agents),
+      });
+      const nextAgentIndex = unwrapSubmenuPrompt(agentIndex);
+      const updatedAgent = await promptDefaultAgentConfig(
+        nextConfig.agents[nextAgentIndex],
+      );
+      nextConfig = {
+        ...nextConfig,
+        agents: nextConfig.agents.map((agent, index) =>
+          index === nextAgentIndex ? updatedAgent : agent,
+        ),
+      };
+      await saveStoredConfig(nextConfig);
+      log.success("Agent 已更新。");
+      continue;
+    }
+
+    const agentIndex = await select<number>({
+      message: "请选择要删除的 Agent",
+      options: getAgentOptions(nextConfig.agents),
+    });
+    const nextAgentIndex = unwrapSubmenuPrompt(agentIndex);
     const shouldClear = await confirm({
-      message: "确定要清空高级 Agent 绑定吗",
+      message: `确定要删除 Agent「${nextConfig.agents[nextAgentIndex]?.agentName ?? ""}」吗`,
       initialValue: false,
       active: "确定",
       inactive: "取消",
@@ -350,10 +362,10 @@ async function promptAgentMenu(
     if (nextShouldClear) {
       nextConfig = {
         ...nextConfig,
-        agentTokenBindings: "",
+        agents: nextConfig.agents.filter((_, index) => index !== nextAgentIndex),
       };
       await saveStoredConfig(nextConfig);
-      log.success("高级 Agent 绑定已清空。");
+      log.success("Agent 已删除。");
     }
   }
 }

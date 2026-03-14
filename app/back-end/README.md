@@ -17,28 +17,12 @@
 - `NODE_ENV=development|production`
 - `HOST`, `PORT`
 - `DASHBOARD_API_TOKEN`
-- `AGENT_API_TOKEN`
-- `AGENT_ALLOWED_DEVICE_ID`
-- `AGENT_ALLOWED_AGENT_NAME`
-- `AGENT_ALLOWED_PLATFORM`
-- `AGENT_TOKEN_BINDINGS`
+- 多个 `Agent` 的 `token / deviceId / agentName / platform`
 - `ALLOWED_ORIGINS`
 - `ALLOW_INSECURE_LOCALHOST`
 
-`AGENT_TOKEN_BINDINGS` 的格式：
-
-```json
-{
-  "agent-token-1": {
-    "deviceId": "macbook-1",
-    "agentName": "desktop-agent",
-    "platform": "macos"
-  }
-}
-```
-
-如果只配置 `AGENT_API_TOKEN`，服务会用 `AGENT_ALLOWED_*` 生成一个默认绑定。  
-production 下必须至少有一个有效 agent 绑定。
+现在 Agent 配置改成列表模式，直接在 CLI 里添加、编辑、删除多个 Agent。  
+production 下必须至少有一个有效 Agent。
 
 ## 运行
 
@@ -52,7 +36,7 @@ bun run dev
 - 切换“后端服务”开关
 - 进入“日志页面”启动后端并查看日志，按 `q` 返回主菜单
 - 配置服务参数
-- 配置 Agent
+- 配置多个 Agent
 - 查看当前配置
 
 配置会保存到 `back-end.config.json`。

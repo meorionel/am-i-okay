@@ -10,6 +10,13 @@ export interface AgentIdentityBinding {
   platform?: AgentPlatform;
 }
 
+export interface StoredAgentConfig {
+  token: string;
+  deviceId: string;
+  agentName: string;
+  platform: AgentPlatform | "";
+}
+
 export interface SecurityConfig {
   env: RuntimeEnvironment;
   dashboardToken: string;
@@ -26,11 +33,7 @@ export interface StoredBackendConfig {
   dashboardToken: string;
   allowedOrigins: string[];
   allowInsecureLocalhost: boolean;
-  agentApiToken: string;
-  agentAllowedDeviceId: string;
-  agentAllowedAgentName: string;
-  agentAllowedPlatform: AgentPlatform | "";
-  agentTokenBindings: string;
+  agents: StoredAgentConfig[];
 }
 
 interface AgentBindingRecord {
@@ -161,52 +164,99 @@ function parseBindingRecord(
   return binding;
 }
 
+function normalizePlatform(value: unknown): AgentPlatform | "" {
+  return value === "macos" || value === "windows" || value === "android"
+    ? value
+    : "";
+}
+
+function normalizeAgent(raw: unknown, index: number): StoredAgentConfig {
+  const source = isRecord(raw) ? raw : {};
+
+  return {
+    token: asOptionalString(source.token) ?? `agent-${index + 1}`,
+    deviceId: asOptionalString(source.deviceId) ?? `agent-device-${index + 1}`,
+    agentName: asOptionalString(source.agentName) ?? "desktop-agent",
+    platform: normalizePlatform(source.platform),
+  };
+}
+
+function parseLegacyAgentBindings(rawValue: unknown): StoredAgentConfig[] {
+  const rawBindings = asOptionalString(rawValue);
+  if (!rawBindings) {
+    return [];
+  }
+
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(rawBindings);
+  } catch {
+    return [];
+  }
+
+  if (!isRecord(parsed)) {
+    return [];
+  }
+
+  return Object.entries(parsed).map(([token, value], index) => {
+    const agent = normalizeAgent(value, index);
+    return {
+      ...agent,
+      token,
+    };
+  });
+}
+
+function normalizeAgents(source: Record<string, unknown>): StoredAgentConfig[] {
+  if (Array.isArray(source.agents)) {
+    return source.agents.map((agent, index) => normalizeAgent(agent, index));
+  }
+
+  const legacyBindings = parseLegacyAgentBindings(source.agentTokenBindings);
+  if (legacyBindings.length > 0) {
+    return legacyBindings;
+  }
+
+  const legacyToken = asOptionalString(source.agentApiToken);
+  if (!legacyToken) {
+    return [];
+  }
+
+  return [
+    {
+      token: legacyToken,
+      deviceId: asOptionalString(source.agentAllowedDeviceId) ?? "local-agent",
+      agentName: asOptionalString(source.agentAllowedAgentName) ?? "desktop-agent",
+      platform: normalizePlatform(source.agentAllowedPlatform),
+    },
+  ];
+}
+
 function parseAgentBindings(
   env: RuntimeEnvironment,
   config: StoredBackendConfig,
 ): Map<string, AgentIdentityBinding> {
   const bindings = new Map<string, AgentIdentityBinding>();
-  const rawBindings = config.agentTokenBindings.trim();
 
-  if (rawBindings) {
-    let parsed: unknown;
-
-    try {
-      parsed = JSON.parse(rawBindings);
-    } catch {
-      throw new Error("AGENT_TOKEN_BINDINGS must be valid JSON");
+  for (const agent of config.agents) {
+    const token = agent.token.trim();
+    if (!token) {
+      throw new Error("agent token must be a non-empty string");
     }
 
-    if (!isRecord(parsed)) {
-      throw new Error("AGENT_TOKEN_BINDINGS must be a JSON object");
+    if (bindings.has(token)) {
+      throw new Error(`duplicate agent token binding for ${token}`);
     }
 
-    for (const [token, value] of Object.entries(parsed)) {
-      if (bindings.has(token)) {
-        throw new Error(`duplicate agent token binding for ${token}`);
-      }
-
-      if (!isRecord(value)) {
-        throw new Error(`AGENT_TOKEN_BINDINGS.${token} must be an object`);
-      }
-
-      bindings.set(token, parseBindingRecord(token, value));
-    }
-  }
-
-  const agentToken = config.agentApiToken.trim();
-  if (!agentToken) {
-    if (env === "production") {
-      throw new Error("AGENT_API_TOKEN is required in production");
-    }
-  } else if (!bindings.has(agentToken)) {
-    const defaultBinding = parseBindingRecord(agentToken, {
-      deviceId: config.agentAllowedDeviceId,
-      agentName: config.agentAllowedAgentName,
-      platform: config.agentAllowedPlatform || undefined,
-    });
-
-    bindings.set(agentToken, defaultBinding);
+    bindings.set(
+      token,
+      parseBindingRecord(token, {
+        deviceId: agent.deviceId,
+        agentName: agent.agentName,
+        platform: agent.platform || undefined,
+      }),
+    );
   }
 
   if (env === "production" && bindings.size === 0) {
@@ -231,20 +281,7 @@ function normalizeStoredConfig(raw: unknown): StoredBackendConfig {
       (env === "development" ? "dev-dashboard-token" : ""),
     allowedOrigins: parseAllowedOrigins(env, asOriginList(source.allowedOrigins)),
     allowInsecureLocalhost: source.allowInsecureLocalhost === true,
-    agentApiToken:
-      asOptionalString(source.agentApiToken) ??
-      (env === "development" ? "dev-agent-token" : ""),
-    agentAllowedDeviceId:
-      asOptionalString(source.agentAllowedDeviceId) ?? "local-agent",
-    agentAllowedAgentName:
-      asOptionalString(source.agentAllowedAgentName) ?? "desktop-agent",
-    agentAllowedPlatform:
-      source.agentAllowedPlatform === "macos" ||
-      source.agentAllowedPlatform === "windows" ||
-      source.agentAllowedPlatform === "android"
-        ? source.agentAllowedPlatform
-        : "",
-    agentTokenBindings: asOptionalString(source.agentTokenBindings) ?? "",
+    agents: normalizeAgents(source),
   };
 }
 
@@ -316,9 +353,15 @@ export function parseAllowedOriginsInput(
 }
 
 export function getConfigSummary(config: StoredBackendConfig): string {
-  const bindings = config.agentTokenBindings.trim()
-    ? config.agentTokenBindings
-    : "未配置";
+  const agents =
+    config.agents.length > 0
+      ? config.agents
+          .map(
+            (agent, index) =>
+              `${index + 1}. ${agent.agentName} | token=${agent.token} | deviceId=${agent.deviceId} | platform=${agent.platform || "未设置"}`,
+          )
+          .join("\n")
+      : "未配置";
 
   return [
     `配置文件: ${CONFIG_FILE_PATH}`,
@@ -328,12 +371,8 @@ export function getConfigSummary(config: StoredBackendConfig): string {
     `Dashboard Token: ${config.dashboardToken || "(空)"}`,
     `允许来源: ${config.allowedOrigins.join(", ") || "(空)"}`,
     `允许 localhost 明文: ${config.allowInsecureLocalhost ? "是" : "否"}`,
-    `默认 Agent Token: ${config.agentApiToken || "(空)"}`,
-    `默认 Agent 设备 ID: ${config.agentAllowedDeviceId}`,
-    `默认 Agent 名称: ${config.agentAllowedAgentName}`,
-    `默认 Agent 平台: ${config.agentAllowedPlatform || "未设置"}`,
-    `高级 Agent 绑定 JSON:`,
-    bindings,
+    `Agent 列表:`,
+    agents,
   ].join("\n");
 }
 

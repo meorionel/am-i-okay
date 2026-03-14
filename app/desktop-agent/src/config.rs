@@ -30,6 +30,8 @@ pub struct Config {
 struct StoredConfig {
     server_ws_url: String,
     device_id: String,
+    #[serde(default = "default_agent_name")]
+    agent_name: String,
     api_token: String,
 }
 
@@ -44,6 +46,7 @@ impl Config {
                 let config = StoredConfig {
                     server_ws_url: default_server_ws_url(),
                     device_id: default_device_id(),
+                    agent_name: default_agent_name(),
                     api_token: default_agent_api_token(),
                 };
                 save_stored_config(&config_path, &config);
@@ -53,8 +56,7 @@ impl Config {
             return Ok(Self {
                 server_ws_url: normalize_server_ws_url(stored_config.server_ws_url)?,
                 device_id: stored_config.device_id,
-                agent_name: env::var("AGENT_NAME")
-                    .unwrap_or_else(|_| DESKTOP_AGENT_NAME.to_string()),
+                agent_name: stored_config.agent_name,
                 api_token: stored_config.api_token,
             });
         }
@@ -70,6 +72,11 @@ impl Config {
             .map(|config| config.device_id.clone())
             .unwrap_or_else(default_device_id);
         let device_id = prompt_device_id(&default_device_id)?;
+        let default_agent_name = stored_config
+            .as_ref()
+            .map(|config| config.agent_name.clone())
+            .unwrap_or_else(default_agent_name);
+        let agent_name = prompt_agent_name(&default_agent_name)?;
         let default_api_token = stored_config
             .as_ref()
             .map(|config| config.api_token.clone())
@@ -81,6 +88,7 @@ impl Config {
             &StoredConfig {
                 server_ws_url: server_ws_url.clone(),
                 device_id: device_id.clone(),
+                agent_name: agent_name.clone(),
                 api_token: api_token.clone(),
             },
         );
@@ -88,7 +96,7 @@ impl Config {
         Ok(Self {
             server_ws_url,
             device_id,
-            agent_name: env::var("AGENT_NAME").unwrap_or_else(|_| DESKTOP_AGENT_NAME.to_string()),
+            agent_name,
             api_token,
         })
     }
@@ -133,29 +141,7 @@ fn normalize_server_ws_url(url: String) -> Result<String> {
 }
 
 fn validate_server_ws_url(url: String) -> Result<String> {
-    let allow_insecure_localhost = env::var("ALLOW_INSECURE_LOCALHOST")
-        .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
-        .unwrap_or(false);
-
-    validate_server_ws_url_with_policy(url, allow_insecure_localhost)
-}
-
-fn validate_server_ws_url_with_policy(
-    url: String,
-    allow_insecure_localhost: bool,
-) -> Result<String> {
     let parsed = Url::parse(&url).map_err(|err| anyhow!("invalid backend url: {err}"))?;
-    let Some(host) = parsed.host_str() else {
-        return Err(anyhow!("backend url must include a host"));
-    };
-
-    let is_local = matches!(host, "127.0.0.1" | "localhost" | "::1") || host.ends_with(".localhost");
-
-    if parsed.scheme() == "ws" && !(is_local && allow_insecure_localhost) {
-        return Err(anyhow!(
-            "non-local or production agent URLs must use wss://; set ALLOW_INSECURE_LOCALHOST=true only for localhost development"
-        ));
-    }
 
     if parsed.path() != "/ws/agent" {
         return Err(anyhow!("agent websocket path must resolve to /ws/agent"));
@@ -240,8 +226,8 @@ fn prompt_server_ws_url(default_value: &str) -> io::Result<String> {
 
 fn prompt_device_id(default_value: &str) -> io::Result<String> {
     let mut stdout = io::stdout();
-    writeln!(stdout, "Please enter current device name")?;
-    write!(stdout, "Device name [{default_value}]: ")?;
+    writeln!(stdout, "Please enter current device ID")?;
+    write!(stdout, "Device ID [{default_value}]: ")?;
     stdout.flush()?;
 
     let mut input = String::new();
@@ -257,6 +243,31 @@ fn prompt_device_id(default_value: &str) -> io::Result<String> {
 
 fn default_agent_api_token() -> String {
     env::var("AGENT_API_TOKEN").unwrap_or_else(|_| "dev-agent-token".to_string())
+}
+
+fn default_agent_name() -> String {
+    env::var("AGENT_NAME").unwrap_or_else(|_| DESKTOP_AGENT_NAME.to_string())
+}
+
+fn prompt_agent_name(default_value: &str) -> io::Result<String> {
+    let mut stdout = io::stdout();
+    writeln!(stdout, "Please enter current agent name")?;
+    write!(stdout, "Agent name [{default_value}]: ")?;
+    stdout.flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        if default_value.trim().is_empty() {
+            return Err(io::Error::other("agent name is required"));
+        }
+
+        return Ok(default_value.to_string());
+    }
+
+    Ok(trimmed.to_string())
 }
 
 fn prompt_agent_api_token(default_value: &str) -> io::Result<String> {
@@ -282,23 +293,23 @@ fn prompt_agent_api_token(default_value: &str) -> io::Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::validate_server_ws_url_with_policy;
+    use super::validate_server_ws_url;
 
     #[test]
-    fn rejects_non_local_cleartext_urls() {
-        let result = validate_server_ws_url_with_policy(
-            "ws://example.com/ws/agent".to_string(),
-            false,
-        );
+    fn allows_non_local_cleartext_urls() {
+        let result = validate_server_ws_url("ws://example.com/ws/agent".to_string());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn rejects_invalid_agent_path() {
+        let result = validate_server_ws_url("ws://127.0.0.1:3000/ws/dashboard".to_string());
         assert!(result.is_err());
     }
 
     #[test]
-    fn allows_local_cleartext_when_explicitly_enabled() {
-        let result = validate_server_ws_url_with_policy(
-            "ws://127.0.0.1:3000/ws/agent".to_string(),
-            true,
-        );
+    fn allows_local_cleartext_urls() {
+        let result = validate_server_ws_url("ws://127.0.0.1:3000/ws/agent".to_string());
         assert!(result.is_ok());
     }
 }
