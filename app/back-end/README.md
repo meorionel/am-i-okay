@@ -9,9 +9,10 @@
 - food 计数器不再信任浏览器自报 fingerprint
 - production 下缺少关键密钥会直接启动失败
 
-## 环境变量
+## 配置方式
 
-参考 [`.env.example`](/Users/aliceclodia/Desktop/am-i-okay/app/back-end/.env.example)：
+后端不再依赖 `.env` 文件，而是启动时通过中文 CLI 菜单读写 `back-end.config.json`。  
+[`.env.example`](/Users/aliceclodia/Desktop/am-i-okay/app/back-end/.env.example) 现在作为配置项参考，菜单中都可以配置：
 
 - `NODE_ENV=development|production`
 - `HOST`, `PORT`
@@ -46,11 +47,15 @@ bun install
 bun run dev
 ```
 
-production 启动：
+启动后会进入中文菜单，你可以：
 
-```bash
-NODE_ENV=production bun run start
-```
+- 切换“后端服务”开关
+- 进入“日志页面”启动后端并查看日志，按 `q` 返回主菜单
+- 配置服务参数
+- 配置 Agent
+- 查看当前配置
+
+配置会保存到 `back-end.config.json`。
 
 ## 认证规则
 
