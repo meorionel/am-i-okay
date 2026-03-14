@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 
 data class AgentUiState(
     val backendUrlInput: String = "",
+    val deviceIdInput: String = "",
     val agentNameInput: String = "",
     val agentApiTokenInput: String = "",
     val statusTextInput: String = "",
@@ -24,6 +25,7 @@ data class AgentUiState(
     val savedExcludedPackages: Set<String> = emptySet(),
     val excludedAppsFilterInput: String = "",
     val savedBackendUrl: String = "",
+    val savedDeviceId: String = "",
     val savedAgentName: String = "",
     val savedAgentApiToken: String = "",
     val savedStatusText: String = "",
@@ -42,6 +44,7 @@ class AgentViewModel(
         private set
 
     private var inputHydratedFromStorage = false
+    private var deviceIdInputHydratedFromStorage = false
     private var agentNameInputHydratedFromStorage = false
     private var agentApiTokenInputHydratedFromStorage = false
     private var statusTextInputHydratedFromStorage = false
@@ -50,6 +53,7 @@ class AgentViewModel(
     init {
         loadInstalledApps()
         observeSavedBackendUrl()
+        observeSavedDeviceId()
         observeSavedAgentName()
         observeSavedAgentApiToken()
         observeSavedStatusText()
@@ -67,6 +71,13 @@ class AgentViewModel(
     fun onAgentNameChanged(value: String) {
         uiState = uiState.copy(
             agentNameInput = value,
+            message = null
+        )
+    }
+
+    fun onDeviceIdChanged(value: String) {
+        uiState = uiState.copy(
+            deviceIdInput = value,
             message = null
         )
     }
@@ -104,6 +115,7 @@ class AgentViewModel(
 
     fun onStartClicked() {
         val currentBackendUrl = uiState.backendUrlInput
+        val currentDeviceId = uiState.deviceIdInput
         val currentAgentName = uiState.agentNameInput
         val currentAgentApiToken = uiState.agentApiTokenInput
         val currentStatusText = uiState.statusTextInput
@@ -112,6 +124,7 @@ class AgentViewModel(
             when (
                 val result = agentController.startAgent(
                     currentBackendUrl,
+                    currentDeviceId,
                     currentAgentName,
                     currentAgentApiToken,
                     currentStatusText,
@@ -122,6 +135,8 @@ class AgentViewModel(
                     uiState = uiState.copy(
                         backendUrlInput = result.savedBackendUrl,
                         savedBackendUrl = result.savedBackendUrl,
+                        deviceIdInput = result.savedDeviceId,
+                        savedDeviceId = result.savedDeviceId,
                         agentNameInput = result.savedAgentName,
                         savedAgentName = result.savedAgentName,
                         agentApiTokenInput = result.savedAgentApiToken,
@@ -218,6 +233,22 @@ class AgentViewModel(
                     }
                 )
                 inputHydratedFromStorage = true
+            }
+        }
+    }
+
+    private fun observeSavedDeviceId() {
+        viewModelScope.launch {
+            agentController.deviceId.collect { storedDeviceId ->
+                uiState = uiState.copy(
+                    savedDeviceId = storedDeviceId,
+                    deviceIdInput = if (deviceIdInputHydratedFromStorage) {
+                        uiState.deviceIdInput
+                    } else {
+                        storedDeviceId
+                    }
+                )
+                deviceIdInputHydratedFromStorage = true
             }
         }
     }

@@ -55,6 +55,7 @@ class AgentForegroundService : Service() {
     private lateinit var configRepository: AgentConfigRepository
     private val webSocketClient = AgentWebSocketClient()
     private var backendWebSocketUrl: String? = null
+    private var deviceId: String = DEFAULT_DEVICE_ID
     private var agentName: String = DEFAULT_AGENT_NAME
     private var agentApiToken: String = ""
     private var statusText: String = ""
@@ -181,12 +182,15 @@ class AgentForegroundService : Service() {
                 return@launch
             }
 
+            deviceId = configRepository.deviceId.first().trim()
+                .ifBlank { DEFAULT_DEVICE_ID }
             agentName = configRepository.agentName.first().trim()
                 .ifBlank { DEFAULT_AGENT_NAME }
             agentApiToken = configRepository.agentApiToken.first().trim()
             statusText = configRepository.statusText.first().trim()
             excludedPackages = configRepository.excludedPackages.first()
             backendWebSocketUrl = toAgentWebSocketUrl(savedBackendUrl)
+            AgentRuntimeState.appendLog("Using device ID: $deviceId")
             AgentRuntimeState.appendLog("Using agent name: $agentName")
             if (agentApiToken.isEmpty()) {
                 AgentRuntimeState.onError("Agent API token is empty. Stop and start the agent again.")
@@ -337,20 +341,12 @@ class AgentForegroundService : Service() {
         return when (scheme) {
             "http", "https" -> {
                 val wsScheme = if (scheme == "https") "wss" else "ws"
-                val path = when {
-                    uri.path.isNullOrBlank() || uri.path == "/" -> "/ws/agent"
-                    uri.path == "/ws/agent" -> "/ws/agent"
-                    else -> "${uri.path.trimEnd('/')}/ws/agent"
-                }
+                val path = uri.path
                 URI(wsScheme, uri.userInfo, host, port, path, query, null).toString()
             }
 
             "ws", "wss" -> {
-                val path = when {
-                    uri.path.isNullOrBlank() || uri.path == "/" -> "/ws/agent"
-                    uri.path == "/ws/agent" -> "/ws/agent"
-                    else -> "${uri.path.trimEnd('/')}/ws/agent"
-                }
+                val path = uri.path
                 URI(scheme, uri.userInfo, host, port, path, query, null).toString()
             }
 
@@ -362,7 +358,6 @@ class AgentForegroundService : Service() {
         foregroundApp: com.amiokay.androidagent.monitor.ForegroundAppInfo,
         sequence: Long
     ): String {
-        val deviceId = agentName.ifBlank { DEFAULT_AGENT_NAME }
         val now = Instant.now().toString()
         val packageName = foregroundApp.packageName
         val appTitle = foregroundApp.appName
@@ -404,8 +399,6 @@ class AgentForegroundService : Service() {
     }
 
     private fun buildStatusPayload(): String {
-        val deviceId = agentName.ifBlank { DEFAULT_AGENT_NAME }
-
         return JSONObject().apply {
             put("type", "status")
             put(
@@ -438,6 +431,7 @@ class AgentForegroundService : Service() {
         const val ACTION_UPDATE_STATUS_TEXT = "com.amiokay.androidagent.action.UPDATE_STATUS_TEXT"
 
         private const val TAG = "AgentForegroundService"
+        private const val DEFAULT_DEVICE_ID = "android-agent"
         private const val DEFAULT_AGENT_NAME = "android-agent"
         private const val NOTIFICATION_CHANNEL_ID = "activity_agent_channel"
         private const val NOTIFICATION_ID = 1001

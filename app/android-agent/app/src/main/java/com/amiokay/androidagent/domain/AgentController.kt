@@ -3,7 +3,6 @@ package com.amiokay.androidagent.domain
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.graphics.drawable.Drawable
 import android.os.Build
 import androidx.core.content.ContextCompat
@@ -17,6 +16,7 @@ import java.net.URI
 sealed interface AgentStartResult {
     data class Started(
         val savedBackendUrl: String,
+        val savedDeviceId: String,
         val savedAgentName: String,
         val savedAgentApiToken: String,
         val savedStatusText: String,
@@ -38,6 +38,7 @@ class AgentController(
 ) {
 
     val backendUrl: Flow<String> = configRepository.backendUrl
+    val deviceId: Flow<String> = configRepository.deviceId
     val agentName: Flow<String> = configRepository.agentName
     val agentApiToken: Flow<String> = configRepository.agentApiToken
     val statusText: Flow<String> = configRepository.statusText
@@ -46,12 +47,14 @@ class AgentController(
 
     suspend fun startAgent(
         rawBackendUrl: String,
+        rawDeviceId: String,
         rawAgentName: String,
         rawAgentApiToken: String,
         rawStatusText: String,
         excludedPackages: Set<String>
     ): AgentStartResult {
         val backendUrl = rawBackendUrl.trim()
+        val deviceId = rawDeviceId.trim()
         val agentName = rawAgentName.trim()
         val agentApiToken = rawAgentApiToken.trim()
         val statusText = rawStatusText.trim()
@@ -61,6 +64,9 @@ class AgentController(
             .toSet()
         if (backendUrl.isEmpty()) {
             return AgentStartResult.Error("Backend URL is required before starting the agent.")
+        }
+        if (deviceId.isEmpty()) {
+            return AgentStartResult.Error("Device ID is required before starting the agent.")
         }
         if (agentName.isEmpty()) {
             return AgentStartResult.Error("Agent name is required before starting the agent.")
@@ -80,11 +86,13 @@ class AgentController(
         }
 
         configRepository.saveBackendUrl(backendUrl)
+        configRepository.saveDeviceId(deviceId)
         configRepository.saveAgentName(agentName)
         configRepository.saveAgentApiToken(agentApiToken)
         configRepository.saveStatusText(statusText)
         configRepository.saveExcludedPackages(sanitizedExcludedPackages)
         AgentRuntimeState.appendLog("Saved backend URL: $backendUrl")
+        AgentRuntimeState.appendLog("Saved device ID: $deviceId")
         AgentRuntimeState.appendLog("Saved agent name: $agentName")
         AgentRuntimeState.appendLog("Saved agent API token")
         AgentRuntimeState.appendLog("Saved status text: ${statusText.ifEmpty { "(empty)" }}")
@@ -102,6 +110,7 @@ class AgentController(
             ContextCompat.startForegroundService(appContext, startIntent)
             AgentStartResult.Started(
                 backendUrl,
+                deviceId,
                 agentName,
                 agentApiToken,
                 statusText,
@@ -213,17 +222,8 @@ class AgentController(
     private fun validateBackendUrl(rawBackendUrl: String): String? {
         val parsed = runCatching { URI(rawBackendUrl) }.getOrNull()
             ?: return "Backend URL is invalid."
-        val scheme = parsed.scheme?.lowercase() ?: return "Backend URL scheme is missing."
-        val host = parsed.host?.lowercase() ?: return "Backend URL host is missing."
-        val isLocalHost = host == "127.0.0.1" || host == "localhost" || host == "10.0.2.2"
-        val isCleartext = scheme == "http" || scheme == "ws"
-        val isDebugBuild =
-            (appContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-
-        if (isCleartext && !(isDebugBuild && isLocalHost)) {
-            return "Cleartext http/ws is only allowed for localhost or emulator development builds."
-        }
-
+        parsed.scheme?.lowercase() ?: return "Backend URL scheme is missing."
+        parsed.host?.lowercase() ?: return "Backend URL host is missing."
         return null
     }
 }

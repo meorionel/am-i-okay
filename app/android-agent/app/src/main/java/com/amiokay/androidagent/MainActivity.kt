@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
                     AgentScreen(
                         uiState = viewModel.uiState,
                         onBackendUrlChanged = viewModel::onBackendUrlChanged,
+                        onDeviceIdChanged = viewModel::onDeviceIdChanged,
                         onAgentNameChanged = viewModel::onAgentNameChanged,
                         onAgentApiTokenChanged = viewModel::onAgentApiTokenChanged,
                         onStatusTextChanged = viewModel::onStatusTextChanged,

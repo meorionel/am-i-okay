@@ -21,6 +21,9 @@
 - `ALLOWED_ORIGINS`
 - `ALLOW_INSECURE_LOCALHOST`
 
+开发模式下现在默认允许所有 `http://` / `ws://` 明文连接。  
+生产模式下仍然要求安全传输，`ALLOW_INSECURE_LOCALHOST` 只作为本地生产排查时的兼容开关。
+
 现在 Agent 配置改成列表模式，直接在 CLI 里添加、编辑、删除多个 Agent。  
 production 下必须至少有一个有效 Agent。
 

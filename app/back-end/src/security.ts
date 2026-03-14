@@ -91,15 +91,15 @@ export function assertSecureTransport(
   const host = url.hostname;
   const isLocal = isLocalHostname(host);
 
+  if (config.env === "development") {
+    return null;
+  }
+
   if (config.allowInsecureLocalhost && isLocal) {
     return null;
   }
 
   if (protocol === "https" || protocol === "wss") {
-    return null;
-  }
-
-  if (isLocal && config.env === "development") {
     return null;
   }
 

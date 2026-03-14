@@ -109,6 +109,7 @@ private enum class AgentTab(
 fun AgentScreen(
     uiState: AgentUiState,
     onBackendUrlChanged: (String) -> Unit,
+    onDeviceIdChanged: (String) -> Unit,
     onAgentNameChanged: (String) -> Unit,
     onAgentApiTokenChanged: (String) -> Unit,
     onStatusTextChanged: (String) -> Unit,
@@ -205,6 +206,7 @@ fun AgentScreen(
                     AgentTab.Control -> ControlPage(
                         uiState = uiState,
                         onBackendUrlChanged = onBackendUrlChanged,
+                        onDeviceIdChanged = onDeviceIdChanged,
                         onAgentNameChanged = onAgentNameChanged,
                         onAgentApiTokenChanged = onAgentApiTokenChanged,
                         onStatusTextChanged = onStatusTextChanged,
@@ -395,6 +397,7 @@ private fun SocialCard(
 private fun ControlPage(
     uiState: AgentUiState,
     onBackendUrlChanged: (String) -> Unit,
+    onDeviceIdChanged: (String) -> Unit,
     onAgentNameChanged: (String) -> Unit,
     onAgentApiTokenChanged: (String) -> Unit,
     onStatusTextChanged: (String) -> Unit,
@@ -416,6 +419,13 @@ private fun ControlPage(
                 label = "Backend URL",
                 value = uiState.backendUrlInput,
                 onValueChange = onBackendUrlChanged
+            )
+        }
+        item {
+            LabeledField(
+                label = "Device ID",
+                value = uiState.deviceIdInput,
+                onValueChange = onDeviceIdChanged
             )
         }
         item {
