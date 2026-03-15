@@ -10,7 +10,7 @@
 - food 实时数据通过同源接口签发短时 websocket 凭证，再订阅后端 `/ws/food`
 - 每次投喂前都会先做一次低难度 `@cap.js` 挑战，再把本次 token 带到投喂代理
 - `/debug` 默认仅开发模式可用
-- `/api/online` 默认仅开发模式可用
+- `/api/online` 默认仅开发模式可用，并流式代理后端在线人数 SSE
 
 ## 环境变量
 
@@ -21,7 +21,6 @@
 - `DASHBOARD_API_TOKEN`
 - `HUMAN_GATE_COOKIE_SECRET`
 - `FRONTEND_ACCESS_TOKEN`
-- `ONLINE_MAX_CONNECTIONS`
 - `ENABLE_DEBUG_PAGE`
 - `ENABLE_ONLINE_API`
 

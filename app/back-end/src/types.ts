@@ -70,6 +70,13 @@ export interface SnapshotMessage {
   };
 }
 
+export interface OnlineCountMessage {
+  type: "online-count";
+  payload: {
+    count: number;
+  };
+}
+
 export interface FoodCounterPayload {
   foods: {
     id: number;

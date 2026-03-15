@@ -4,11 +4,6 @@ function parseBoolean(value: string | undefined, defaultValue = false): boolean 
 	return value === undefined ? defaultValue : value === "1" || value === "true";
 }
 
-function parseInteger(value: string | undefined, fallback: number): number {
-	const parsed = Number(value);
-	return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
 function trimTrailingSlash(value: string): string {
 	return value.replace(/\/+$/, "");
 }
@@ -81,10 +76,6 @@ export function getHumanGateCookieSecret(): string {
 export function getFrontendAccessToken(): string | null {
 	const token = process.env.FRONTEND_ACCESS_TOKEN?.trim();
 	return token && token.length > 0 ? token : null;
-}
-
-export function getOnlineMaxConnections(): number {
-	return parseInteger(process.env.ONLINE_MAX_CONNECTIONS, 50);
 }
 
 export function isDebugPageEnabled(): boolean {

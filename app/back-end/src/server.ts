@@ -15,7 +15,7 @@ import {
   handleCorsPreflight,
 } from "./security";
 import { ActivityStore } from "./store";
-import type { WsClientData } from "./types";
+import type { OnlineCountMessage, WsClientData } from "./types";
 import { jsonResponse } from "./utils";
 import { WebSocketHub } from "./ws";
 
@@ -26,6 +26,33 @@ export function startServer(config: StoredBackendConfig) {
   const store = new ActivityStore();
   const foodStore = new FoodStore();
   const wsHub = new WebSocketHub(store, foodStore);
+  const onlineClients = new Set<ReadableStreamDefaultController<string>>();
+  const onlineMaxConnections = Number.parseInt(
+    process.env.ONLINE_MAX_CONNECTIONS ?? "50",
+    10,
+  );
+
+  const createOnlinePayload = (count: number): string => {
+    const message: OnlineCountMessage = {
+      type: "online-count",
+      payload: { count },
+    };
+
+    return `data: ${JSON.stringify(message)}\n\n`;
+  };
+
+  const broadcastOnlineCount = () => {
+    const payload = createOnlinePayload(onlineClients.size);
+
+    for (const controller of [...onlineClients]) {
+      try {
+        controller.enqueue(payload);
+      } catch (error) {
+        console.error("[online] failed to push online count", error);
+        onlineClients.delete(controller);
+      }
+    }
+  };
 
   const server = Bun.serve<WsClientData>({
     hostname: host,
@@ -65,6 +92,68 @@ export function startServer(config: StoredBackendConfig) {
           latestStatus: store.getLatestStatus(),
           deviceSnapshots: store.getDeviceSnapshots(),
           recentActivities: store.getRecentActivities(),
+        });
+      }
+
+      if (req.method === "GET" && url.pathname === "/api/online") {
+        const auth = authenticateHttpRequest(req, security, "dashboard");
+        if (auth instanceof Response) {
+          return auth;
+        }
+
+        if (
+          Number.isFinite(onlineMaxConnections) &&
+          onlineMaxConnections > 0 &&
+          onlineClients.size >= onlineMaxConnections
+        ) {
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: "too many online connections",
+            },
+            429,
+          );
+        }
+
+        let controllerRef: ReadableStreamDefaultController<string> | null = null;
+
+        const removeClient = () => {
+          if (!controllerRef) {
+            return;
+          }
+
+          const controller = controllerRef;
+          controllerRef = null;
+
+          if (onlineClients.delete(controller)) {
+            try {
+              controller.close();
+            } catch {}
+            broadcastOnlineCount();
+          }
+        };
+
+        const stream = new ReadableStream<string>({
+          start(controller) {
+            controllerRef = controller;
+            onlineClients.add(controller);
+            controller.enqueue(createOnlinePayload(onlineClients.size));
+            broadcastOnlineCount();
+
+            req.signal.addEventListener("abort", removeClient, { once: true });
+          },
+          cancel() {
+            removeClient();
+          },
+        });
+
+        return new Response(stream, {
+          headers: {
+            "cache-control": "no-cache, no-transform",
+            connection: "keep-alive",
+            "content-type": "text/event-stream; charset=utf-8",
+          },
         });
       }
 

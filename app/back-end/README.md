@@ -61,6 +61,7 @@ bun run dev
 
 - `GET /health`
 - `GET /api/current`
+- `GET /api/online`
 - `GET /api/food`
 - `POST /api/food/feed`
 - `POST /api/human/page/challenge`

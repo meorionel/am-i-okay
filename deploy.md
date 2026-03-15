@@ -101,7 +101,6 @@ NODE_ENV=production
 BACKEND_INTERNAL_API_BASE_URL=https://your-backend.example.com
 DASHBOARD_API_TOKEN=replace-with-strong-dashboard-token
 FRONTEND_ACCESS_TOKEN=
-ONLINE_MAX_CONNECTIONS=50
 ENABLE_DEBUG_PAGE=false
 ENABLE_ONLINE_API=false
 ```
