@@ -6,6 +6,7 @@
       "name": "front-end",
       "dependencies": {
         "@cap.js/widget": "^0.1.41",
+        "@iconify-json/uil": "^1.2.3",
         "@iconify/react": "^5.2.1",
         "goey-toast": "^0.3.0",
         "next": "16.1.6",
@@ -97,6 +98,8 @@
     "@humanwhocodes/module-importer": ["@humanwhocodes/module-importer@1.0.1", "https://registry.npmmirror.com/@humanwhocodes/module-importer/-/module-importer-1.0.1.tgz", {}, "sha512-bxveV4V8v5Yb4ncFTT3rPSgZBOpCkjfK0y4oVVVJwIuDVBRMDXrPyXRL988i5ap9m9bnyEEjWfm5WkBmtffLfA=="],
 
     "@humanwhocodes/retry": ["@humanwhocodes/retry@0.4.3", "https://registry.npmmirror.com/@humanwhocodes/retry/-/retry-0.4.3.tgz", {}, "sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ=="],
+
+    "@iconify-json/uil": ["@iconify-json/uil@1.2.3", "https://registry.npmmirror.com/@iconify-json/uil/-/uil-1.2.3.tgz", { "dependencies": { "@iconify/types": "*" } }, "sha512-if91+UBhDQc6glPsIaXecGIcXnbQZfEO4Gdv89TV2xQ+V5e9GWbY5rNl2fsKZd8COsRQ5lRQAKimVQVL0CZZVg=="],
 
     "@iconify/react": ["@iconify/react@5.2.1", "https://registry.npmmirror.com/@iconify/react/-/react-5.2.1.tgz", { "dependencies": { "@iconify/types": "^2.0.0" }, "peerDependencies": { "react": ">=16" } }, "sha512-37GDR3fYDZmnmUn9RagyaX+zca24jfVOMY8E1IXTqJuE8pxNtN51KWPQe3VODOWvuUurq7q9uUu3CFrpqj5Iqg=="],
 

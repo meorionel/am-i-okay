@@ -1,6 +1,9 @@
-import { Icon } from "@iconify/react";
+import { icons as uilIcons } from "@iconify-json/uil";
+import { Icon, addCollection } from "@iconify/react";
 import type { ActivityEvent } from "@/src/types/activity";
 import { formatDeviceLabel, formatPlatform, formatSecondaryLine } from "@/src/components/dashboard/dashboard-utils";
+
+addCollection(uilIcons);
 
 interface ActiveDeviceCardProps {
 	device: ActivityEvent;

@@ -12,6 +12,7 @@
 	},
 	"dependencies": {
 		"@cap.js/widget": "^0.1.41",
+		"@iconify-json/uil": "^1.2.3",
 		"@iconify/react": "^5.2.1",
 		"goey-toast": "^0.3.0",
 		"next": "16.1.6",
