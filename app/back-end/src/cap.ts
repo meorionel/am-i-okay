@@ -1,6 +1,6 @@
 import Cap from "@cap.js/server";
 
-export type HumanChallengePurpose = "page" | "feed";
+export type HumanChallengePurpose = "page" | "feed" | "message";
 
 export interface HumanChallengePolicy {
 	challengeCount: number;
@@ -24,12 +24,21 @@ function getPagePolicy(): HumanChallengePolicy {
 }
 
 function getFeedPolicy(): HumanChallengePolicy {
-	return {
-		challengeCount: parseInteger(process.env.CAP_FEED_CHALLENGE_COUNT, 8),
-		challengeSize: parseInteger(process.env.CAP_FEED_CHALLENGE_SIZE, 20),
-		challengeDifficulty: parseInteger(process.env.CAP_FEED_CHALLENGE_DIFFICULTY, 3),
-		expiresMs: parseInteger(process.env.CAP_FEED_EXPIRES_MS, 2 * 60_000, 1_000),
-	};
+  return {
+    challengeCount: parseInteger(process.env.CAP_FEED_CHALLENGE_COUNT, 8),
+    challengeSize: parseInteger(process.env.CAP_FEED_CHALLENGE_SIZE, 20),
+    challengeDifficulty: parseInteger(process.env.CAP_FEED_CHALLENGE_DIFFICULTY, 3),
+    expiresMs: parseInteger(process.env.CAP_FEED_EXPIRES_MS, 2 * 60_000, 1_000),
+  };
+}
+
+function getMessagePolicy(): HumanChallengePolicy {
+  return {
+    challengeCount: parseInteger(process.env.CAP_MESSAGE_CHALLENGE_COUNT, 12),
+    challengeSize: parseInteger(process.env.CAP_MESSAGE_CHALLENGE_SIZE, 24),
+    challengeDifficulty: parseInteger(process.env.CAP_MESSAGE_CHALLENGE_DIFFICULTY, 4),
+    expiresMs: parseInteger(process.env.CAP_MESSAGE_EXPIRES_MS, 2 * 60_000, 1_000),
+  };
 }
 
 function createCapInstance(): Cap {
@@ -44,13 +53,15 @@ function createCapInstance(): Cap {
 }
 
 const capByPurpose: Record<HumanChallengePurpose, Cap> = {
-	page: createCapInstance(),
-	feed: createCapInstance(),
+  page: createCapInstance(),
+  feed: createCapInstance(),
+  message: createCapInstance(),
 };
 
 const policyByPurpose: Record<HumanChallengePurpose, HumanChallengePolicy> = {
-	page: getPagePolicy(),
-	feed: getFeedPolicy(),
+  page: getPagePolicy(),
+  feed: getFeedPolicy(),
+  message: getMessagePolicy(),
 };
 
 export function getHumanChallengePolicy(purpose: HumanChallengePurpose): HumanChallengePolicy {

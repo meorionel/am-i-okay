@@ -8,6 +8,7 @@ import {
 const CURRENT_DEVICES_PATH = "/api/dashboard/current";
 const FOOD_COUNTER_PATH = "/api/dashboard/food";
 const FOOD_FEED_PATH = "/api/dashboard/feed";
+const MESSAGE_SOCKET_PATH = "/api/dashboard/message/socket";
 
 function createHumanHeaders(pageId: string): HeadersInit {
 	return {
@@ -20,6 +21,28 @@ export class FoodRateLimitError extends Error {
 		super("RATE_LIMITED");
 		this.name = "FoodRateLimitError";
 	}
+}
+
+export async function createMessageSocket(pageId: string): Promise<string> {
+	const response = await fetch(MESSAGE_SOCKET_PATH, {
+		method: "GET",
+		cache: "no-store",
+		headers: {
+			Accept: "application/json",
+			...createHumanHeaders(pageId),
+		},
+	});
+
+	if (!response.ok) {
+		throw new Error(`createMessageSocket failed with HTTP ${response.status}`);
+	}
+
+	const data = (await response.json()) as { url?: string };
+	if (typeof data.url !== "string" || data.url.length === 0) {
+		throw new Error("message socket bootstrap did not return a websocket url");
+	}
+
+	return data.url;
 }
 
 function toErrorMessage(error: unknown): string {

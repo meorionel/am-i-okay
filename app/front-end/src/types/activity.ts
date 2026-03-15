@@ -63,6 +63,13 @@ export interface FoodCounterResponse {
 	foods: FoodItem[];
 }
 
+export interface MessageItem {
+	id: string;
+	body: string;
+	createdAt: string;
+	expiresAt: string;
+}
+
 export type FoodSocketMessage =
 	| { type: "food_snapshot"; payload: FoodCounterResponse }
 	| { type: "food_update"; payload: FoodCounterResponse }
@@ -70,12 +77,21 @@ export type FoodSocketMessage =
 
 export interface DashboardErrorPayload {
 	message: string;
+	code?: string;
+	requestId?: string;
+	retryAfterMs?: number;
+	frozenUntil?: string;
 }
 
 export type DashboardMessage =
 	| { type: "snapshot"; payload: DashboardSnapshot }
 	| { type: "activity"; payload: ActivityEvent }
 	| { type: "status"; payload: DeviceStatus }
+	| { type: "error"; payload: DashboardErrorPayload };
+
+export type MessageSocketMessage =
+	| { type: "message"; payload: MessageItem }
+	| { type: "message_ack"; payload: { requestId: string; nextAllowedAt: string } }
 	| { type: "error"; payload: DashboardErrorPayload };
 
 type UnknownRecord = Record<string, unknown>;
@@ -333,15 +349,37 @@ export function parseFoodSocketMessage(input: unknown): FoodSocketMessage | null
 	}
 
 	if (type === "error") {
-		const message = readString(input.payload.message);
-		if (!message) {
-			return null;
-		}
+		const errorPayload = parseErrorPayload(input.payload);
+		return errorPayload ? { type: "error", payload: errorPayload } : null;
+	}
 
-		return {
-			type: "error",
-			payload: { message },
-		};
+	return null;
+}
+
+export function parseMessageSocketMessage(input: unknown): MessageSocketMessage | null {
+	if (!isRecord(input)) {
+		return null;
+	}
+
+	const type = readString(input.type);
+	if (!type || !isRecord(input.payload)) {
+		return null;
+	}
+
+	if (type === "message") {
+		const message = parseMessageItem(input.payload);
+		return message ? { type: "message", payload: message } : null;
+	}
+
+	if (type === "message_ack") {
+		const requestId = readString(input.payload.requestId);
+		const nextAllowedAt = readString(input.payload.nextAllowedAt);
+		return requestId && nextAllowedAt ? { type: "message_ack", payload: { requestId, nextAllowedAt } } : null;
+	}
+
+	if (type === "error") {
+		const errorPayload = parseErrorPayload(input.payload);
+		return errorPayload ? { type: "error", payload: errorPayload } : null;
 	}
 
 	return null;
@@ -367,6 +405,63 @@ function parseFoodItem(input: unknown): FoodItem | null {
 		totalCount,
 		viewerCount,
 	};
+}
+
+function parseMessageItem(input: unknown): MessageItem | null {
+	if (!isRecord(input)) {
+		return null;
+	}
+
+	const id = readString(input.id);
+	const body = readString(input.body);
+	const createdAt = readString(input.createdAt);
+	const expiresAt = readString(input.expiresAt);
+
+	if (!id || !body || !createdAt || !expiresAt) {
+		return null;
+	}
+
+	return {
+		id,
+		body,
+		createdAt,
+		expiresAt,
+	};
+}
+
+function parseErrorPayload(input: unknown): DashboardErrorPayload | null {
+	if (!isRecord(input)) {
+		return null;
+	}
+
+	const message = readString(input.message);
+	if (!message) {
+		return null;
+	}
+
+	const payload: DashboardErrorPayload = { message };
+	const code = readString(input.code);
+	const requestId = readString(input.requestId);
+	const retryAfterMs = readNumber(input.retryAfterMs);
+	const frozenUntil = readString(input.frozenUntil);
+
+	if (code) {
+		payload.code = code;
+	}
+
+	if (requestId) {
+		payload.requestId = requestId;
+	}
+
+	if (retryAfterMs !== undefined) {
+		payload.retryAfterMs = retryAfterMs;
+	}
+
+	if (frozenUntil) {
+		payload.frozenUntil = frozenUntil;
+	}
+
+	return payload;
 }
 
 export function parseDashboardMessage(input: unknown): DashboardMessage | null {

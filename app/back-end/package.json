@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@cap.js/server": "^4.0.5",
-    "@clack/prompts": "^1.1.0"
+    "@clack/prompts": "^1.1.0",
+    "ahocorasick": "^1.0.2"
   }
 }

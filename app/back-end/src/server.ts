@@ -10,6 +10,7 @@ import {
   authenticateDashboardWebSocketRequest,
   authenticateHttpRequest,
   authenticateFoodWebSocketRequest,
+  authenticateMessageWebSocketRequest,
   authenticateWebSocketRequest,
   handleCorsPreflight,
 } from "./security";
@@ -237,9 +238,22 @@ export function startServer(config: StoredBackendConfig) {
         return jsonResponse(req, security, await createHumanChallenge("feed"));
       }
 
+      if (req.method === "POST" && url.pathname === "/api/human/message/challenge") {
+        const auth = authenticateHttpRequest(req, security, "dashboard");
+        if (auth instanceof Response) {
+          return auth;
+        }
+
+        return jsonResponse(req, security, await createHumanChallenge("message"));
+      }
+
       if (
         req.method === "POST" &&
-        (url.pathname === "/api/human/page/redeem" || url.pathname === "/api/human/feed/redeem")
+        (
+          url.pathname === "/api/human/page/redeem" ||
+          url.pathname === "/api/human/feed/redeem" ||
+          url.pathname === "/api/human/message/redeem"
+        )
       ) {
         const auth = authenticateHttpRequest(req, security, "dashboard");
         if (auth instanceof Response) {
@@ -302,7 +316,11 @@ export function startServer(config: StoredBackendConfig) {
           );
         }
 
-        const purpose = url.pathname.includes("/page/") ? "page" : "feed";
+        const purpose = url.pathname.includes("/page/")
+          ? "page"
+          : url.pathname.includes("/message/")
+            ? "message"
+            : "feed";
         const result = await redeemHumanChallenge(purpose, token, solutions);
         return jsonResponse(
           req,
@@ -442,6 +460,30 @@ export function startServer(config: StoredBackendConfig) {
         );
       }
 
+      if (url.pathname === "/ws/message") {
+        const auth = await authenticateMessageWebSocketRequest(req, security);
+        if (auth instanceof Response) {
+          return auth;
+        }
+
+        const upgraded = bunServer.upgrade(req, {
+          data: auth,
+        });
+
+        if (upgraded) {
+          return;
+        }
+
+        return jsonResponse(
+          req,
+          security,
+          {
+            error: "WebSocket upgrade failed for /ws/message",
+          },
+          400,
+        );
+      }
+
       return jsonResponse(
         req,
         security,
@@ -456,7 +498,7 @@ export function startServer(config: StoredBackendConfig) {
         wsHub.handleOpen(ws);
       },
       message(ws, message) {
-        wsHub.handleMessage(ws, message);
+        void wsHub.handleMessage(ws, message);
       },
       close(ws, code, reason) {
         wsHub.handleClose(ws, code, reason);

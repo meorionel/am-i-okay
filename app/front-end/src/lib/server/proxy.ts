@@ -55,7 +55,11 @@ async function signHumanGateValue(value: string): Promise<string> {
 	return Buffer.from(digest).toString("base64url");
 }
 
-function encodeWebSocketPayload(payload: { role: "food" | "dashboard"; viewerId?: string; expiresAt: number }): string {
+function encodeWebSocketPayload(payload: {
+	role: "food" | "dashboard" | "message";
+	viewerId?: string;
+	expiresAt: number;
+}): string {
 	return Buffer.from(JSON.stringify(payload)).toString("base64url");
 }
 
@@ -157,6 +161,19 @@ export async function createDashboardWebSocketUrl(): Promise<string> {
 	const signature = await signValue(payload);
 	const token = `${payload}.${signature}`;
 	const url = new URL("/ws/dashboard", getBackendPublicWebSocketBaseUrl());
+	url.searchParams.set("token", token);
+	return url.toString();
+}
+
+export async function createMessageWebSocketUrl(viewerId: string): Promise<string> {
+	const payload = encodeWebSocketPayload({
+		role: "message",
+		viewerId,
+		expiresAt: Date.now() + 5 * 60_000,
+	});
+	const signature = await signValue(payload);
+	const token = `${payload}.${signature}`;
+	const url = new URL("/ws/message", getBackendPublicWebSocketBaseUrl());
 	url.searchParams.set("token", token);
 	return url.toString();
 }

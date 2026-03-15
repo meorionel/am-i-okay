@@ -89,6 +89,26 @@ export interface FoodUpdateMessage {
   payload: FoodCounterPayload;
 }
 
+export interface MessageItem {
+  id: string;
+  body: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface MessageBroadcastMessage {
+  type: "message";
+  payload: MessageItem;
+}
+
+export interface MessageAckMessage {
+  type: "message_ack";
+  payload: {
+    requestId: string;
+    nextAllowedAt: string;
+  };
+}
+
 export interface ActivityBroadcastMessage {
   type: "activity";
   payload: ActivityEvent;
@@ -103,6 +123,10 @@ export interface ErrorMessage {
   type: "error";
   payload: {
     message: string;
+    code?: string;
+    requestId?: string;
+    retryAfterMs?: number;
+    frozenUntil?: string;
   };
 }
 
@@ -112,14 +136,17 @@ export type ServerToDashboardMessage =
   | StatusBroadcastMessage
   | FoodSnapshotMessage
   | FoodUpdateMessage
+  | MessageBroadcastMessage
+  | MessageAckMessage
   | ErrorMessage;
 
-export type ClientRole = "agent" | "dashboard" | "food";
+export type ClientRole = "agent" | "dashboard" | "food" | "message";
 
 export interface WsClientData {
   role: ClientRole;
   connectionId: string;
   viewerId?: string;
+  ip?: string;
   agent?: {
     token: string;
     deviceId: string;

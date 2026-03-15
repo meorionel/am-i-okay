@@ -2,6 +2,7 @@ import type { AgentIdentityBinding, SecurityConfig } from "./config";
 import {
   verifyDashboardWebSocketToken,
   verifyFoodViewerToken,
+  verifyMessageViewerToken,
 } from "./food-auth";
 import type { ClientRole, WsClientData } from "./types";
 
@@ -36,6 +37,26 @@ function parseToken(req: Request): string | null {
 
   const queryToken = new URL(req.url).searchParams.get("token")?.trim();
   return queryToken && queryToken.length > 0 ? queryToken : null;
+}
+
+function parseClientIp(req: Request): string {
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    const firstIp = forwardedFor.split(",")[0]?.trim();
+    if (firstIp) {
+      return firstIp;
+    }
+  }
+
+  const candidateHeaders = ["cf-connecting-ip", "x-real-ip", "x-client-ip"];
+  for (const header of candidateHeaders) {
+    const value = req.headers.get(header)?.trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "unknown";
 }
 
 function rejectJson(status: number, message: string): Response {
@@ -149,6 +170,7 @@ export function authenticateWebSocketRequest(
   return {
     role: auth.role,
     connectionId: crypto.randomUUID(),
+    ip: parseClientIp(req),
     agent: auth.agent,
   };
 }
@@ -166,6 +188,7 @@ export async function authenticateDashboardWebSocketRequest(
     return {
       role: "dashboard",
       connectionId: crypto.randomUUID(),
+      ip: parseClientIp(req),
     };
   }
 
@@ -177,6 +200,7 @@ export async function authenticateDashboardWebSocketRequest(
   return {
     role: "dashboard",
     connectionId: crypto.randomUUID(),
+    ip: parseClientIp(req),
   };
 }
 
@@ -198,5 +222,28 @@ export async function authenticateFoodWebSocketRequest(
     role: "food",
     connectionId: crypto.randomUUID(),
     viewerId,
+    ip: parseClientIp(req),
+  };
+}
+
+export async function authenticateMessageWebSocketRequest(
+  req: Request,
+  config: SecurityConfig,
+): Promise<WsClientData | Response> {
+  const token = parseToken(req);
+  if (!token) {
+    return rejectJson(401, "missing viewer token");
+  }
+
+  const viewerId = await verifyMessageViewerToken(token, config);
+  if (!viewerId) {
+    return rejectJson(403, "forbidden");
+  }
+
+  return {
+    role: "message",
+    connectionId: crypto.randomUUID(),
+    viewerId,
+    ip: parseClientIp(req),
   };
 }

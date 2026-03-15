@@ -7,6 +7,7 @@
       "dependencies": {
         "@cap.js/server": "^4.0.5",
         "@clack/prompts": "^1.1.0",
+        "ahocorasick": "^1.0.2",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -24,6 +25,8 @@
     "@types/bun": ["@types/bun@1.3.10", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.10.tgz", { "dependencies": { "bun-types": "1.3.10" } }, "sha512-0+rlrUrOrTSskibryHbvQkDOWRJwJZqZlxrUs1u4oOoTln8+WIXBPmAuCF35SWB2z4Zl3E84Nl/D0P7803nigQ=="],
 
     "@types/node": ["@types/node@25.4.0", "https://registry.npmmirror.com/@types/node/-/node-25.4.0.tgz", { "dependencies": { "undici-types": "~7.18.0" } }, "sha512-9wLpoeWuBlcbBpOY3XmzSTG3oscB6xjBEEtn+pYXTfhyXhIxC5FsBer2KTopBlvKEiW9l13po9fq+SJY/5lkhw=="],
+
+    "ahocorasick": ["ahocorasick@1.0.2", "https://registry.npmmirror.com/ahocorasick/-/ahocorasick-1.0.2.tgz", {}, "sha512-hCOfMzbFx5IDutmWLAt6MZwOUjIfSM9G9FyVxytmE4Rs/5YDPWQrD/+IR1w+FweD9H2oOZEnv36TmkjhNURBVA=="],
 
     "bun-types": ["bun-types@1.3.10", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.10.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-tcpfCCl6XWo6nCVnpcVrxQ+9AYN1iqMIzgrSKYMB/fjLtV2eyAVEg7AxQJuCq/26R6HpKWykQXuSOq/21RYcbg=="],
 
