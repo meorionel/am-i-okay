@@ -28,7 +28,7 @@ export function MessageBoardSection({ enabled, pageId }: { enabled: boolean; pag
 						}
 					}}
 					placeholder="写这里写留言哦"
-					className="h-12 flex-1 rounded-2xl border border-stone-200 bg-white/80 px-4 text-sm text-stone-700 outline-none transition focus:border-stone-300 focus:bg-white"
+					className="h-12 flex-1 rounded-2xl border border-stone-200 bg-white/80 px-4 max-md:py-3 text-sm text-stone-700 outline-none transition focus:border-stone-300 focus:bg-white"
 				/>
 				<button
 					type="button"
