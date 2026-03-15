@@ -22,11 +22,8 @@ export function PageGateScreen({
 			<div className="w-full max-w-md rounded-[2rem] border border-stone-200/80 bg-white/80 p-8 shadow-[0_30px_80px_rgba(120,113,108,0.16)] backdrop-blur">
 				<p className="text-xs uppercase tracking-[0.32em] text-stone-400">Human Check</p>
 				<h1 className="mt-4 font-[family-name:var(--font-editorial)] text-4xl leading-tight text-stone-800">
-					进入前先做一次人机验证
+					进入前先让我们来做一次人机验证
 				</h1>
-				<p className="mt-3 text-sm leading-6 text-stone-500">
-					首页数据和实时连接会在验证通过后再建立。这个挑战难度更高一些，用来挡掉自动脚本和批量刷访问。
-				</p>
 				<div className="mt-7 rounded-2xl bg-stone-100/80 p-4">
 					<div className="flex items-center justify-between text-xs uppercase tracking-[0.18em] text-stone-400">
 						<span>{isVerifying ? "Verifying" : errorMessage ? "Retry" : "Queued"}</span>
@@ -55,7 +52,7 @@ export function PageGateScreen({
 					</button>
 				) : (
 					<p className="mt-6 text-center text-sm text-stone-500">
-						页面已自动开始验证，请稍候。
+						验证正在进行, 完成之后页面会自动跳转
 					</p>
 				)}
 			</div>
