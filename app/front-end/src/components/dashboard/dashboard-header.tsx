@@ -17,7 +17,7 @@ export function DashboardHeader({
 					{connectionStatus}
 				</span>
 				<span className="text-xs font-light text-stone-500">
-					{onlineCount !== null ? `当前有 ${onlineCount} 个人在偷偷看我在做什么` : "在线人数仅在开发模式显示"}
+					{onlineCount !== null ? `当前有 ${onlineCount} 个人在偷偷看我在做什么` : "在线人数暂时不可用"}
 				</span>
 			</div>
 		</section>
