@@ -5,6 +5,7 @@
     "": {
       "name": "back-end",
       "dependencies": {
+        "@cap.js/server": "^4.0.5",
         "@clack/prompts": "^1.1.0",
       },
       "devDependencies": {
@@ -14,6 +15,8 @@
     },
   },
   "packages": {
+    "@cap.js/server": ["@cap.js/server@4.0.5", "https://registry.npmmirror.com/@cap.js/server/-/server-4.0.5.tgz", {}, "sha512-S902YIyGyiriNaexfqTzMy5ixxSb3/jYSJwr2gAY9d7XXoYftcifgij/11pjuiU72Ogm6XKZOggDB2DtjRMyww=="],
+
     "@clack/core": ["@clack/core@1.1.0", "https://registry.npmmirror.com/@clack/core/-/core-1.1.0.tgz", { "dependencies": { "sisteransi": "^1.0.5" } }, "sha512-SVcm4Dqm2ukn64/8Gub2wnlA5nS2iWJyCkdNHcvNHPIeBTGojpdJ+9cZKwLfmqy7irD4N5qLteSilJlE0WLAtA=="],
 
     "@clack/prompts": ["@clack/prompts@1.1.0", "https://registry.npmmirror.com/@clack/prompts/-/prompts-1.1.0.tgz", { "dependencies": { "@clack/core": "1.1.0", "sisteransi": "^1.0.5" } }, "sha512-pkqbPGtohJAvm4Dphs2M8xE29ggupihHdy1x84HNojZuMtFsHiUlRvqD24tM2+XmI+61LlfNceM3Wr7U5QES5g=="],

@@ -7,8 +7,8 @@ function formatCount(value: number): string {
 	return new Intl.NumberFormat("en-US").format(value);
 }
 
-export function FoodCounterSection() {
-	const { foods, fallingFoods, isLoading, isSubmitting, activeFoodId, feed } = useFoodCounter();
+export function FoodCounterSection({ enabled, pageId }: { enabled: boolean; pageId: string }) {
+	const { foods, fallingFoods, isLoading, isSubmitting, activeFoodId, feed } = useFoodCounter(enabled, pageId);
 
 	if (!isLoading && foods.length === 0) {
 		return null;

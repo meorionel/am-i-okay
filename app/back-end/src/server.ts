@@ -1,4 +1,9 @@
 import { FoodStore } from "./food";
+import {
+  createHumanChallenge,
+  redeemHumanChallenge,
+  validateHumanToken,
+} from "./cap";
 import { loadSecurityConfig, type StoredBackendConfig } from "./config";
 import {
   assertSecureTransport,
@@ -119,12 +124,27 @@ export function startServer(config: StoredBackendConfig) {
 
         const payload = body as Record<string, unknown>;
         const rawFoodId = payload.id ?? payload.foodId;
+        const rawHumanToken = payload.humanToken;
         if (!Number.isInteger(rawFoodId)) {
           return jsonResponse(
             req,
             security,
             {
               error: "body.id must be an integer food id",
+            },
+            400,
+          );
+        }
+
+        if (
+          security.humanGateEnabled &&
+          (typeof rawHumanToken !== "string" || rawHumanToken.trim().length === 0)
+        ) {
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: "missing human verification token",
             },
             400,
           );
@@ -143,6 +163,20 @@ export function startServer(config: StoredBackendConfig) {
         }
 
         try {
+          if (security.humanGateEnabled) {
+            const isHuman = await validateHumanToken("feed", rawHumanToken as string);
+            if (!isHuman) {
+              return jsonResponse(
+                req,
+                security,
+                {
+                  error: "invalid human verification token",
+                },
+                403,
+              );
+            }
+          }
+
           const food = foodStore.toggle(rawFoodId as number, viewerId);
           wsHub.broadcastFoodUpdate();
 
@@ -183,6 +217,157 @@ export function startServer(config: StoredBackendConfig) {
             500,
           );
         }
+      }
+
+      if (req.method === "POST" && url.pathname === "/api/human/page/challenge") {
+        const auth = authenticateHttpRequest(req, security, "dashboard");
+        if (auth instanceof Response) {
+          return auth;
+        }
+
+        return jsonResponse(req, security, await createHumanChallenge("page"));
+      }
+
+      if (req.method === "POST" && url.pathname === "/api/human/feed/challenge") {
+        const auth = authenticateHttpRequest(req, security, "dashboard");
+        if (auth instanceof Response) {
+          return auth;
+        }
+
+        return jsonResponse(req, security, await createHumanChallenge("feed"));
+      }
+
+      if (
+        req.method === "POST" &&
+        (url.pathname === "/api/human/page/redeem" || url.pathname === "/api/human/feed/redeem")
+      ) {
+        const auth = authenticateHttpRequest(req, security, "dashboard");
+        if (auth instanceof Response) {
+          return auth;
+        }
+
+        let body: unknown;
+
+        try {
+          body = await req.json();
+        } catch {
+          return jsonResponse(
+            req,
+            security,
+            {
+              success: false,
+              error: "request body must be valid JSON",
+            },
+            400,
+          );
+        }
+
+        if (typeof body !== "object" || body === null) {
+          return jsonResponse(
+            req,
+            security,
+            {
+              success: false,
+              error: "request body must be a JSON object",
+            },
+            400,
+          );
+        }
+
+        const payload = body as Record<string, unknown>;
+        const token = payload.token;
+        const solutions = payload.solutions;
+
+        if (typeof token !== "string" || token.trim().length === 0) {
+          return jsonResponse(
+            req,
+            security,
+            {
+              success: false,
+              error: "missing challenge token",
+            },
+            400,
+          );
+        }
+
+        if (!Array.isArray(solutions) || !solutions.every((value) => typeof value === "number")) {
+          return jsonResponse(
+            req,
+            security,
+            {
+              success: false,
+              error: "solutions must be a numeric array",
+            },
+            400,
+          );
+        }
+
+        const purpose = url.pathname.includes("/page/") ? "page" : "feed";
+        const result = await redeemHumanChallenge(purpose, token, solutions);
+        return jsonResponse(
+          req,
+          security,
+          result.success
+            ? result
+            : {
+                success: false,
+                error: result.message ?? "challenge redeem failed",
+              },
+          result.success ? 200 : 400,
+        );
+      }
+
+      if (req.method === "POST" && url.pathname === "/api/human/page/verify") {
+        const auth = authenticateHttpRequest(req, security, "dashboard");
+        if (auth instanceof Response) {
+          return auth;
+        }
+
+        let body: unknown;
+
+        try {
+          body = await req.json();
+        } catch {
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: "request body must be valid JSON",
+            },
+            400,
+          );
+        }
+
+        const token =
+          typeof body === "object" && body !== null
+            ? (body as Record<string, unknown>).token
+            : null;
+        if (typeof token !== "string" || token.trim().length === 0) {
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: "missing verification token",
+            },
+            400,
+          );
+        }
+
+        const isHuman = await validateHumanToken("page", token);
+        if (!isHuman) {
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: "invalid human verification token",
+            },
+            403,
+          );
+        }
+
+        return jsonResponse(req, security, {
+          success: true,
+        });
       }
 
       if (url.pathname === "/ws/agent") {

@@ -31,19 +31,23 @@ function parseOnlineMessage(raw: unknown): number | null {
 	}
 }
 
-function buildOnlineStreamUrl(): string | null {
+function buildOnlineStreamUrl(pageId: string): string | null {
 	if (typeof window === "undefined") {
 		return null;
 	}
 
-	return `${window.location.origin}/api/online`;
+	return `${window.location.origin}/api/online?pageId=${encodeURIComponent(pageId)}`;
 }
 
-export function useOnlineCount(): number | null {
+export function useOnlineCount(enabled: boolean, pageId: string): number | null {
 	const [count, setCount] = useState<number | null>(null);
 
 	useEffect(() => {
-		const url = buildOnlineStreamUrl();
+		if (!enabled) {
+			return;
+		}
+
+		const url = buildOnlineStreamUrl(pageId);
 		if (!url) {
 			return;
 		}
@@ -73,7 +77,7 @@ export function useOnlineCount(): number | null {
 				eventSource.close();
 			}
 		};
-	}, []);
+	}, [enabled, pageId]);
 
-	return count;
+	return enabled ? count : null;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { PageLoading } from "./loading";
+import { PageGateScreen } from "@/src/components/human/page-gate-screen";
 import { ActiveDevicesSection } from "@/src/components/dashboard/active-devices-section";
 import { DashboardHeader } from "@/src/components/dashboard/dashboard-header";
 import { DeviceStatusSection } from "@/src/components/dashboard/device-status-section";
@@ -8,13 +9,23 @@ import { FoodCounterSection } from "@/src/components/dashboard/food-counter-sect
 import { RecentActivitySection } from "@/src/components/dashboard/recent-activity-section";
 import { formatTimelineTime } from "@/src/components/dashboard/dashboard-utils";
 import { useDashboardStream } from "@/src/hooks/use-dashboard-stream";
+import { useHumanGate } from "@/src/hooks/use-human-gate";
 import { useOnlineCount } from "@/src/hooks/use-online-count";
 
 export default function Home() {
-	const { devices, latestStatus, recentActivities, connectionStatus, lastEventAt, isBootstrapping } = useDashboardStream();
-	const onlineCount = useOnlineCount();
+	const { isVerified, isCheckingStatus, isVerifying, progress, errorMessage, pageId, verify } = useHumanGate();
+	const { devices, latestStatus, recentActivities, connectionStatus, lastEventAt, isBootstrapping } = useDashboardStream(isVerified, pageId);
+	const onlineCount = useOnlineCount(isVerified, pageId);
 	const visibleTimeline = recentActivities.slice(0, 4);
 	const lastUpdated = lastEventAt ? formatTimelineTime(new Date(lastEventAt).toISOString()) : null;
+
+	if (isCheckingStatus) {
+		return <PageLoading />;
+	}
+
+	if (!isVerified) {
+		return <PageGateScreen isVerifying={isVerifying} progress={progress} errorMessage={errorMessage} onVerify={verify} />;
+	}
 
 	if (isBootstrapping) {
 		return <PageLoading />;
@@ -24,7 +35,7 @@ export default function Home() {
 		<main className="min-h-screen bg-[linear-gradient(180deg,#fbfbf9_0%,#f5f5f1_42%,#efefe9_100%)] text-stone-700">
 			<div className="mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-16 sm:px-8 sm:py-20">
 				<DashboardHeader connectionStatus={connectionStatus} lastUpdated={lastUpdated} onlineCount={onlineCount} />
-				<FoodCounterSection />
+				<FoodCounterSection enabled={isVerified} pageId={pageId} />
 				<DeviceStatusSection latestStatus={latestStatus} />
 				<ActiveDevicesSection devices={devices} />
 				<RecentActivitySection activities={visibleTimeline} />

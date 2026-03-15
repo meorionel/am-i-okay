@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { requireHumanGate } from "@/src/lib/server/proxy";
 import { getOnlineMaxConnections, isOnlineApiEnabled } from "@/src/lib/server/env";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +51,11 @@ function broadcastOnlineCount(): void {
 export async function GET(request: NextRequest): Promise<Response> {
 	if (!isOnlineApiEnabled()) {
 		return new Response("Not Found", { status: 404 });
+	}
+
+	const gateResponse = await requireHumanGate(request);
+	if (gateResponse) {
+		return gateResponse;
 	}
 
 	if (onlineClients.size >= getOnlineMaxConnections()) {

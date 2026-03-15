@@ -5,9 +5,15 @@ import {
 	getBackendInternalApiBaseUrlCandidates,
 	getBackendPublicWebSocketBaseUrl,
 	getDashboardApiToken,
+	getHumanGateCookieSecret,
 } from "@/src/lib/server/env";
 
 const FOOD_VIEWER_COOKIE = "amiokay_food_viewer";
+const HUMAN_GATE_COOKIE = "amiokay_human_gate";
+
+interface HumanGateCookiePayload {
+	expiresAt: number;
+}
 
 function toErrorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
@@ -15,6 +21,24 @@ function toErrorMessage(error: unknown): string {
 
 async function signValue(value: string): Promise<string> {
 	const secret = getDashboardApiToken();
+	const key = await crypto.subtle.importKey(
+		"raw",
+		new TextEncoder().encode(secret),
+		{ name: "HMAC", hash: "SHA-256" },
+		false,
+		["sign"],
+	);
+	const digest = await crypto.subtle.sign(
+		"HMAC",
+		key,
+		new TextEncoder().encode(value),
+	);
+
+	return Buffer.from(digest).toString("base64url");
+}
+
+async function signHumanGateValue(value: string): Promise<string> {
+	const secret = getHumanGateCookieSecret();
 	const key = await crypto.subtle.importKey(
 		"raw",
 		new TextEncoder().encode(secret),
@@ -49,6 +73,43 @@ async function verifyViewerCookie(
 
 	const expectedSignature = await signValue(viewerId);
 	return signature === expectedSignature ? viewerId : null;
+}
+
+export async function createHumanGateCookieValue(): Promise<string> {
+	const payload: HumanGateCookiePayload = {
+		expiresAt: Date.now() + 24 * 60 * 60_000,
+	};
+	const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
+	const signature = await signHumanGateValue(encoded);
+	return `${encoded}.${signature}`;
+}
+
+async function verifyHumanGateCookie(rawValue: string | undefined): Promise<boolean> {
+	if (!rawValue) {
+		return false;
+	}
+
+	const [encoded, signature] = rawValue.split(".");
+	if (!encoded || !signature) {
+		return false;
+	}
+
+	const expectedSignature = await signHumanGateValue(encoded);
+	if (signature !== expectedSignature) {
+		return false;
+	}
+
+	try {
+		const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as HumanGateCookiePayload;
+		return Number.isFinite(payload.expiresAt) && payload.expiresAt > Date.now();
+	} catch {
+		return false;
+	}
+}
+
+export async function hasValidHumanGate(): Promise<boolean> {
+	const cookieStore = await cookies();
+	return await verifyHumanGateCookie(cookieStore.get(HUMAN_GATE_COOKIE)?.value);
 }
 
 export async function getOrIssueFoodViewer(): Promise<{
@@ -156,6 +217,26 @@ export async function proxyToBackend(
 	}
 
 	return nextResponse;
+}
+
+export async function requireHumanGate(_request: Request): Promise<NextResponse | null> {
+	void _request;
+	const isValid = await hasValidHumanGate();
+	if (isValid) {
+		return null;
+	}
+
+	return NextResponse.json(
+		{
+			error: "human verification required",
+		},
+		{
+			status: 403,
+			headers: {
+				"cache-control": "no-store",
+			},
+		},
+	);
 }
 
 export function createProxyErrorResponse(error: unknown): NextResponse {

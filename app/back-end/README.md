@@ -7,6 +7,7 @@
 - `/ws/agent` 绑定固定 `deviceId` / `agentName`
 - CORS 仅允许 `ALLOWED_ORIGINS`
 - food 计数器不再信任浏览器自报 fingerprint
+- `@cap.js` 挑战在后端生成、兑换、校验，页面进入与投喂各自使用独立 token 空间
 - production 下缺少关键密钥会直接启动失败
 
 ## 配置方式
@@ -20,6 +21,15 @@
 - 多个 `Agent` 的 `token / deviceId / agentName / platform`
 - `ALLOWED_ORIGINS`
 - `ALLOW_INSECURE_LOCALHOST`
+- `CAP_ENABLED`
+- `CAP_PAGE_CHALLENGE_COUNT`
+- `CAP_PAGE_CHALLENGE_SIZE`
+- `CAP_PAGE_CHALLENGE_DIFFICULTY`
+- `CAP_PAGE_EXPIRES_MS`
+- `CAP_FEED_CHALLENGE_COUNT`
+- `CAP_FEED_CHALLENGE_SIZE`
+- `CAP_FEED_CHALLENGE_DIFFICULTY`
+- `CAP_FEED_EXPIRES_MS`
 
 开发模式下现在默认允许所有 `http://` / `ws://` 明文连接。  
 生产模式下仍然要求安全传输，`ALLOW_INSECURE_LOCALHOST` 只作为本地生产排查时的兼容开关。
@@ -54,6 +64,11 @@ bun run dev
 - `GET /api/current`
 - `GET /api/food`
 - `POST /api/food/feed`
+- `POST /api/human/page/challenge`
+- `POST /api/human/page/redeem`
+- `POST /api/human/page/verify`
+- `POST /api/human/feed/challenge`
+- `POST /api/human/feed/redeem`
 
 ### WebSocket
 
@@ -83,6 +98,7 @@ bun run dev
 - 后端不再接受 `x-browser-fingerprint`
 - food 请求必须带可信代理注入的 `x-food-viewer-id`
 - 正常浏览器流量应通过前端同源代理访问
+- `POST /api/food/feed` 现在还必须带 `humanToken`，并且 token 只能用于一次投喂
 
 ## 验证
 

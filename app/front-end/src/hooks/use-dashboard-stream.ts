@@ -84,7 +84,7 @@ function toRecentActivity(event: ActivityEvent): RecentActivity {
 	};
 }
 
-export function useDashboardStream(): {
+export function useDashboardStream(enabled: boolean, pageId: string): {
 	devices: ActivityEvent[];
 	latestStatus: DeviceStatus | null;
 	recentActivities: RecentActivity[];
@@ -100,6 +100,12 @@ export function useDashboardStream(): {
 	const [isBootstrapping, setIsBootstrapping] = useState(true);
 
 	useEffect(() => {
+		if (!enabled) {
+			setConnectionStatus("connecting");
+			setIsBootstrapping(true);
+			return;
+		}
+
 		let isActive = true;
 		let reconnectTimer: number | null = null;
 		let socket: WebSocket | null = null;
@@ -129,6 +135,7 @@ export function useDashboardStream(): {
 					cache: "no-store",
 					headers: {
 						Accept: "application/json",
+						"x-human-page-id": pageId,
 					},
 				});
 
@@ -236,7 +243,7 @@ export function useDashboardStream(): {
 
 		const bootstrap = async (): Promise<void> => {
 			try {
-				const dashboard = await fetchCurrentDevices();
+				const dashboard = await fetchCurrentDevices(pageId);
 				if (!isActive) {
 					return;
 				}
@@ -262,7 +269,7 @@ export function useDashboardStream(): {
 			}
 			socket?.close();
 		};
-	}, []);
+	}, [enabled, pageId]);
 
 	const devices = useMemo(() => getDevices(deviceState), [deviceState]);
 

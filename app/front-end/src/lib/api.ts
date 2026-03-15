@@ -9,6 +9,12 @@ const CURRENT_DEVICES_PATH = "/api/dashboard/current";
 const FOOD_COUNTER_PATH = "/api/dashboard/food";
 const FOOD_FEED_PATH = "/api/dashboard/feed";
 
+function createHumanHeaders(pageId: string): HeadersInit {
+	return {
+		"x-human-page-id": pageId,
+	};
+}
+
 export class FoodRateLimitError extends Error {
 	constructor() {
 		super("RATE_LIMITED");
@@ -24,7 +30,7 @@ function toErrorMessage(error: unknown): string {
 	return String(error);
 }
 
-export async function fetchCurrentDevices(): Promise<CurrentDevicesResponse> {
+export async function fetchCurrentDevices(pageId: string): Promise<CurrentDevicesResponse> {
 	const url = CURRENT_DEVICES_PATH;
 
 	try {
@@ -33,6 +39,7 @@ export async function fetchCurrentDevices(): Promise<CurrentDevicesResponse> {
 			cache: "no-store",
 			headers: {
 				Accept: "application/json",
+				...createHumanHeaders(pageId),
 			},
 		});
 
@@ -57,7 +64,7 @@ export async function fetchCurrentDevices(): Promise<CurrentDevicesResponse> {
 	}
 }
 
-export async function fetchFoodCounter(): Promise<FoodCounterResponse> {
+export async function fetchFoodCounter(pageId: string): Promise<FoodCounterResponse> {
 	const url = FOOD_COUNTER_PATH;
 
 	try {
@@ -66,6 +73,7 @@ export async function fetchFoodCounter(): Promise<FoodCounterResponse> {
 			cache: "no-store",
 			headers: {
 				Accept: "application/json",
+				...createHumanHeaders(pageId),
 			},
 		});
 
@@ -81,7 +89,7 @@ export async function fetchFoodCounter(): Promise<FoodCounterResponse> {
 	}
 }
 
-export async function feedFood(foodId: number): Promise<FoodCounterResponse> {
+export async function feedFood(pageId: string, foodId: number, humanToken: string): Promise<FoodCounterResponse> {
 	const url = FOOD_FEED_PATH;
 
 	try {
@@ -91,9 +99,11 @@ export async function feedFood(foodId: number): Promise<FoodCounterResponse> {
 			headers: {
 				Accept: "application/json",
 				"Content-Type": "application/json",
+				...createHumanHeaders(pageId),
 			},
 			body: JSON.stringify({
 				id: foodId,
+				humanToken,
 			}),
 		});
 

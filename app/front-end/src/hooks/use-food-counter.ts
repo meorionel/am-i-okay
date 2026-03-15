@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { gooeyToast } from "goey-toast";
+import { solveHumanChallenge } from "@/src/lib/human-gate";
 import { FoodRateLimitError, fetchFoodCounter, feedFood } from "@/src/lib/api";
 import { parseFoodSocketMessage, type FoodItem } from "@/src/types/activity";
 
@@ -53,7 +54,7 @@ function createFoodDrops(foods: FoodItem[], previousFoods: FoodItem[]): FallingF
 	return drops;
 }
 
-export function useFoodCounter(): {
+export function useFoodCounter(enabled: boolean, pageId: string): {
 	foods: FoodItem[];
 	fallingFoods: FallingFood[];
 	isLoading: boolean;
@@ -85,6 +86,14 @@ export function useFoodCounter(): {
 	};
 
 	useEffect(() => {
+		if (!enabled) {
+			setFoods([]);
+			foodsRef.current = [];
+			setFallingFoods([]);
+			setIsLoading(true);
+			return;
+		}
+
 		let isActive = true;
 		let reconnectTimer: number | null = null;
 		let socket: WebSocket | null = null;
@@ -106,6 +115,7 @@ export function useFoodCounter(): {
 					cache: "no-store",
 					headers: {
 						Accept: "application/json",
+						"x-human-page-id": pageId,
 					},
 				});
 
@@ -172,7 +182,7 @@ export function useFoodCounter(): {
 
 		const bootstrap = async (): Promise<void> => {
 			try {
-				const response = await fetchFoodCounter();
+				const response = await fetchFoodCounter(pageId);
 				if (!isActive) {
 					return;
 				}
@@ -195,7 +205,7 @@ export function useFoodCounter(): {
 			}
 			socket?.close();
 		};
-	}, []);
+	}, [enabled, pageId]);
 
 	const feed = async (foodId: number): Promise<void> => {
 		if (isSubmitting) {
@@ -215,26 +225,46 @@ export function useFoodCounter(): {
 		setActiveFoodId(foodId);
 
 		try {
-			const response = await feedFood(foodId);
+			const operation = (async () => {
+				const humanToken = await solveHumanChallenge("/api/human/feed");
+				const response = await feedFood(pageId, foodId, humanToken);
+				const activeFood = response.foods.find((item) => item.id === foodId) ?? null;
+				return {
+					response,
+					activeFood,
+				};
+			})();
+
+			gooeyToast.promise(operation, {
+				loading: "正在进行投喂...",
+				success: ({ activeFood }) => {
+					if (!activeFood) {
+						return "投喂成功";
+					}
+
+					return activeFood.viewerCount > 0
+						? `你投喂了一个 ${activeFood.emoji} , 谢谢你`
+						: `你收回了一个 ${activeFood.emoji}`;
+				},
+				error: (error) => {
+					if (error instanceof FoodRateLimitError) {
+						return "你太快了!";
+					}
+
+					if (error instanceof Error && error.message.includes("HTTP 403")) {
+						return "人机验证没有通过，请再试一次。";
+					}
+
+					return "投喂失败了，请稍后再试。";
+				},
+			});
+
+			const { response } = await operation;
 			const previousFoods = foodsRef.current;
 			setFoods(response.foods);
 			foodsRef.current = response.foods;
 			spawnDrops(response.foods, previousFoods);
-
-			const activeFood = response.foods.find((item) => item.id === foodId);
-			if (activeFood?.viewerCount === 1) {
-				gooeyToast.success(`你投喂了一个 ${activeFood.emoji} , 谢谢你`, {
-					duration: 2400,
-				});
-			}
 		} catch (error) {
-			if (error instanceof FoodRateLimitError) {
-				gooeyToast.warning("你太快了!", {
-					duration: 2200,
-				});
-				return;
-			}
-
 			console.warn(`[food] failed to feed id=${foodId}`, error);
 		} finally {
 			setIsSubmitting(false);

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { PageGateScreen } from "@/src/components/human/page-gate-screen";
+import { useHumanGate } from "@/src/hooks/use-human-gate";
 import { useDashboardStream } from "@/src/hooks/use-dashboard-stream";
 
 type CurrentApiDebug = {
@@ -18,13 +20,14 @@ function prettyNow(value: number | null): string {
 	return new Date(value).toISOString();
 }
 
-async function fetchCurrentRaw(): Promise<CurrentApiDebug> {
+async function fetchCurrentRaw(pageId: string): Promise<CurrentApiDebug> {
 	try {
 		const response = await fetch("/api/dashboard/current", {
 			method: "GET",
 			cache: "no-store",
 			headers: {
 				Accept: "application/json",
+				"x-human-page-id": pageId,
 			},
 		});
 
@@ -53,7 +56,8 @@ async function fetchCurrentRaw(): Promise<CurrentApiDebug> {
 }
 
 export function DebugClientPage() {
-	const { devices, connectionStatus, lastEventAt } = useDashboardStream();
+	const { isVerified, isVerifying, progress, errorMessage, pageId, verify } = useHumanGate();
+	const { devices, connectionStatus, lastEventAt } = useDashboardStream(isVerified, pageId);
 	const [apiDebug, setApiDebug] = useState<CurrentApiDebug>({
 		loading: true,
 		status: null,
@@ -68,15 +72,19 @@ export function DebugClientPage() {
 		if (setLoading) {
 			setApiDebug((prev) => ({ ...prev, loading: true }));
 		}
-		const result = await fetchCurrentRaw();
+		const result = await fetchCurrentRaw(pageId);
 		setApiDebug(result);
 	};
 
 	useEffect(() => {
+		if (!isVerified) {
+			return;
+		}
+
 		let cancelled = false;
 
 		const bootstrap = async (): Promise<void> => {
-			const result = await fetchCurrentRaw();
+			const result = await fetchCurrentRaw(pageId);
 			if (!cancelled) {
 				setApiDebug(result);
 			}
@@ -87,7 +95,11 @@ export function DebugClientPage() {
 		return () => {
 			cancelled = true;
 		};
-	}, []);
+	}, [isVerified, pageId]);
+
+	if (!isVerified) {
+		return <PageGateScreen isVerifying={isVerifying} progress={progress} errorMessage={errorMessage} onVerify={verify} />;
+	}
 
 	return (
 		<main className="min-h-screen p-6">

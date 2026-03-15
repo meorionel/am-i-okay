@@ -23,6 +23,7 @@ export interface SecurityConfig {
   allowedOrigins: string[];
   allowInsecureLocalhost: boolean;
   agentBindings: Map<string, AgentIdentityBinding>;
+  humanGateEnabled: boolean;
 }
 
 export interface StoredBackendConfig {
@@ -391,5 +392,6 @@ export function loadSecurityConfig(config: StoredBackendConfig): SecurityConfig 
     allowedOrigins: parseAllowedOrigins(config.env, config.allowedOrigins),
     allowInsecureLocalhost: config.allowInsecureLocalhost,
     agentBindings: parseAgentBindings(config.env, config),
+    humanGateEnabled: process.env.CAP_ENABLED !== "false",
   };
 }

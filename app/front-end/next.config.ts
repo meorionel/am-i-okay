@@ -29,6 +29,7 @@ function addConnectSrcVariants(values: Set<string>, protocol: string, host: stri
 
 function getConnectSrcValues(): string {
 	const values = new Set<string>(["'self'"]);
+	values.add("https://cdn.jsdelivr.net");
 
 	const internalBaseUrl = process.env.BACKEND_INTERNAL_API_BASE_URL?.trim();
 	const publicWsBaseUrl = process.env.BACKEND_PUBLIC_WS_BASE_URL?.trim();
@@ -63,6 +64,8 @@ const securityHeaders = [
 			"img-src 'self' data: blob:",
 			"style-src 'self' 'unsafe-inline'",
 			"script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+			"worker-src 'self' blob:",
+			"child-src 'self' blob:",
 			"font-src 'self' data:",
 			`connect-src ${getConnectSrcValues()}`,
 			"frame-ancestors 'none'",

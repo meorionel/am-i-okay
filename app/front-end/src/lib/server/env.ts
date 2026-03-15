@@ -73,6 +73,11 @@ export function getDashboardApiToken(): string {
 	return token;
 }
 
+export function getHumanGateCookieSecret(): string {
+	const token = process.env.HUMAN_GATE_COOKIE_SECRET?.trim();
+	return token && token.length > 0 ? token : getDashboardApiToken();
+}
+
 export function getFrontendAccessToken(): string | null {
 	const token = process.env.FRONTEND_ACCESS_TOKEN?.trim();
 	return token && token.length > 0 ? token : null;
