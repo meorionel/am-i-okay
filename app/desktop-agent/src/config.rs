@@ -37,7 +37,7 @@ struct StoredConfig {
 
 impl Config {
     pub fn from_prompt() -> Result<Self> {
-        let config_path = config_file_path();
+        let config_path = resolve_config_path();
         let stored_config = load_stored_config(&config_path);
 
         #[cfg(target_os = "windows")]
@@ -150,9 +150,37 @@ fn validate_server_ws_url(url: String) -> Result<String> {
     Ok(parsed.to_string())
 }
 
-fn config_file_path() -> PathBuf {
+fn resolve_config_path() -> PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        let executable_dir_path = executable_dir_config_path();
+        if executable_dir_path.is_file() {
+            return executable_dir_path;
+        }
+
+        let current_dir_path = current_dir_config_path();
+        if current_dir_path.is_file() {
+            return current_dir_path;
+        }
+
+        return executable_dir_path;
+    }
+
+    current_dir_config_path()
+}
+
+fn current_dir_config_path() -> PathBuf {
     env::current_dir()
         .unwrap_or_else(|_| PathBuf::from("."))
+        .join(CONFIG_FILE_NAME)
+}
+
+#[cfg(target_os = "windows")]
+fn executable_dir_config_path() -> PathBuf {
+    env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(Path::to_path_buf))
+        .unwrap_or_else(|| env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
         .join(CONFIG_FILE_NAME)
 }
 
