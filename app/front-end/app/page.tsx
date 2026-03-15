@@ -11,12 +11,10 @@ import { RecentActivitySection } from "@/src/components/dashboard/recent-activit
 import { formatTimelineTime } from "@/src/components/dashboard/dashboard-utils";
 import { useDashboardStream } from "@/src/hooks/use-dashboard-stream";
 import { useHumanGate } from "@/src/hooks/use-human-gate";
-import { useOnlineCount } from "@/src/hooks/use-online-count";
 
 export default function Home() {
 	const { isVerified, isCheckingStatus, isVerifying, progress, errorMessage, pageId, verify } = useHumanGate();
-	const { devices, latestStatus, recentActivities, connectionStatus, lastEventAt, isBootstrapping } = useDashboardStream(isVerified, pageId);
-	const onlineCount = useOnlineCount(isVerified, pageId);
+	const { devices, latestStatus, recentActivities, onlineCount, connectionStatus, lastEventAt, isBootstrapping } = useDashboardStream(isVerified, pageId);
 	const lastUpdated = lastEventAt ? formatTimelineTime(new Date(lastEventAt).toISOString()) : null;
 
 	if (isCheckingStatus) {

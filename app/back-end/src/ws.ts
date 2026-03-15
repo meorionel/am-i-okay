@@ -15,6 +15,7 @@ import type {
   MessageBroadcastMessage,
   MessageItem,
   MessageSnapshotMessage,
+  OnlineCountMessage,
   ServerToDashboardMessage,
   SnapshotMessage,
   StatusBroadcastMessage,
@@ -67,6 +68,7 @@ export class WebSocketHub {
     this.dashboards.add(ws);
     console.log(`[ws] dashboard connected: ${ws.data.connectionId}`);
     this.sendSnapshot(ws);
+    this.broadcastOnlineCount();
   }
 
   async handleMessage(
@@ -173,6 +175,7 @@ export class WebSocketHub {
       this.messageSubscribers.delete(ws);
     } else {
       this.dashboards.delete(ws);
+      this.broadcastOnlineCount();
     }
 
     console.log(
@@ -214,10 +217,22 @@ export class WebSocketHub {
         latestStatus: this.store.getLatestStatus(),
         deviceSnapshots: this.store.getDeviceSnapshots(),
         recentActivities: this.store.getRecentActivities(),
+        onlineCount: this.dashboards.size,
       },
     };
 
     return message;
+  }
+
+  private broadcastOnlineCount(): void {
+    const message: OnlineCountMessage = {
+      type: "online-count",
+      payload: {
+        count: this.dashboards.size,
+      },
+    };
+
+    this.broadcastToDashboards(message);
   }
 
   private sendFoodSnapshot(ws: ServerWebSocket<WsClientData>): void {

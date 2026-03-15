@@ -236,44 +236,6 @@ export async function proxyToBackend(
 	return nextResponse;
 }
 
-export async function proxyEventStreamToBackend(
-	path: string,
-	init?: RequestInit,
-): Promise<Response> {
-	const headers = new Headers(init?.headers);
-	headers.set("accept", "text/event-stream");
-	headers.set("authorization", `Bearer ${getDashboardApiToken()}`);
-
-	let response: Response | null = null;
-	let lastError: unknown = null;
-
-	for (const baseUrl of getBackendInternalApiBaseUrlCandidates()) {
-		try {
-			response = await fetch(`${baseUrl}${path}`, {
-				...init,
-				headers,
-				cache: "no-store",
-			});
-			break;
-		} catch (error) {
-			lastError = error;
-		}
-	}
-
-	if (!response) {
-		throw lastError ?? new Error(`failed to reach backend at ${getBackendInternalApiBaseUrl()}`);
-	}
-
-	return new Response(response.body, {
-		status: response.status,
-		headers: {
-			"cache-control": response.headers.get("cache-control") ?? "no-cache, no-transform",
-			connection: response.headers.get("connection") ?? "keep-alive",
-			"content-type": response.headers.get("content-type") ?? "text/event-stream; charset=utf-8",
-		},
-	});
-}
-
 export async function requireHumanGate(_request: Request): Promise<NextResponse | null> {
 	void _request;
 	const isValid = await hasValidHumanGate();

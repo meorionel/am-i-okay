@@ -89,7 +89,7 @@ desktop-agent / android-agent
 - 订阅 Dashboard WebSocket
 - 在前端合并、去重、排序设备活动
 - 渲染 Dashboard UI
-- 通过 Next.js Route Handler 代理后端 SSE 在线人数接口 `/api/online`
+- 通过 Dashboard WebSocket 接收在线人数等实时信息
 
 当前界面不是管理后台风格, 而是一个偏产品展示感的单页实时看板.
 

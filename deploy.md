@@ -102,14 +102,12 @@ BACKEND_INTERNAL_API_BASE_URL=https://your-backend.example.com
 DASHBOARD_API_TOKEN=replace-with-strong-dashboard-token
 FRONTEND_ACCESS_TOKEN=
 ENABLE_DEBUG_PAGE=false
-ENABLE_ONLINE_API=false
 ```
 
 说明：
 
 - 浏览器不会直接拿到 `DASHBOARD_API_TOKEN`，它只在 Next 服务端代理里使用。
 - `ENABLE_DEBUG_PAGE=false` 时，`/debug` 在 production 下返回 404。
-- `ENABLE_ONLINE_API=false` 时，`/api/online` 在 production 下默认关闭。
 - `BACKEND_INTERNAL_API_BASE_URL` 必须指向已经部署好的 hardened back-end。
 
 构建并启动：
@@ -222,6 +220,5 @@ cd app/android-agent
 - `DASHBOARD_API_TOKEN` 和 `AGENT_API_TOKEN` 已替换为强随机值
 - `AGENT_TOKEN_BINDINGS` 已绑定真实 `deviceId` / `agentName`
 - 前端生产环境 `ENABLE_DEBUG_PAGE=false`
-- 前端生产环境 `ENABLE_ONLINE_API=false`
 - desktop-agent 未启用 `ALLOW_INSECURE_LOCALHOST`
 - Android release 包未放开 cleartext

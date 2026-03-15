@@ -44,6 +44,7 @@ export interface DashboardSnapshot {
 	devices: ActivityEvent[];
 	latestStatus: DeviceStatus | null;
 	recentActivities: RecentActivity[];
+	onlineCount: number | null;
 }
 
 export interface CurrentDevicesResponse {
@@ -85,6 +86,7 @@ export interface DashboardErrorPayload {
 
 export type DashboardMessage =
 	| { type: "snapshot"; payload: DashboardSnapshot }
+	| { type: "online-count"; payload: { count: number } }
 	| { type: "activity"; payload: ActivityEvent }
 	| { type: "status"; payload: DeviceStatus }
 	| { type: "error"; payload: DashboardErrorPayload };
@@ -500,7 +502,28 @@ export function parseDashboardMessage(input: unknown): DashboardMessage | null {
 
 		return {
 			type: "snapshot",
-			payload: { devices, latestStatus, recentActivities },
+			payload: {
+				devices,
+				latestStatus,
+				recentActivities,
+				onlineCount: readNumber(input.payload.onlineCount) ?? null,
+			},
+		};
+	}
+
+	if (type === "online-count") {
+		if (!isRecord(input.payload)) {
+			return null;
+		}
+
+		const count = readNumber(input.payload.count);
+		if (count === undefined) {
+			return null;
+		}
+
+		return {
+			type: "online-count",
+			payload: { count },
 		};
 	}
 

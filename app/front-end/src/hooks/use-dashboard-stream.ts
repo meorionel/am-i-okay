@@ -88,6 +88,7 @@ export function useDashboardStream(enabled: boolean, pageId: string): {
 	devices: ActivityEvent[];
 	latestStatus: DeviceStatus | null;
 	recentActivities: RecentActivity[];
+	onlineCount: number | null;
 	connectionStatus: ConnectionStatus;
 	lastEventAt: number | null;
 	isBootstrapping: boolean;
@@ -95,6 +96,7 @@ export function useDashboardStream(enabled: boolean, pageId: string): {
 	const [deviceState, dispatch] = useReducer(deviceReducer, {});
 	const [latestStatus, setLatestStatus] = useState<DeviceStatus | null>(null);
 	const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
+	const [onlineCount, setOnlineCount] = useState<number | null>(null);
 	const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
 	const [lastEventAt, setLastEventAt] = useState<number | null>(null);
 	const [isBootstrapping, setIsBootstrapping] = useState(true);
@@ -179,7 +181,14 @@ export function useDashboardStream(enabled: boolean, pageId: string): {
 							safeDispatch({ type: "replace", devices: message.payload.devices });
 							setLatestStatus(message.payload.latestStatus);
 							setRecentActivities(message.payload.recentActivities);
+							setOnlineCount(message.payload.onlineCount);
 							safeSetLastEventAt(resolveLastEventAt(message.payload.devices));
+							setConnectionStatus("connected");
+							return;
+						}
+
+						if (message.type === "online-count") {
+							setOnlineCount(message.payload.count);
 							setConnectionStatus("connected");
 							return;
 						}
@@ -277,6 +286,7 @@ export function useDashboardStream(enabled: boolean, pageId: string): {
 		devices,
 		latestStatus,
 		recentActivities,
+		onlineCount,
 		connectionStatus,
 		lastEventAt,
 		isBootstrapping,

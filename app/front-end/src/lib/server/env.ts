@@ -84,7 +84,3 @@ export function isDebugPageEnabled(): boolean {
 		process.env.NODE_ENV !== "production",
 	);
 }
-
-export function isOnlineApiEnabled(): boolean {
-	return parseBoolean(process.env.ENABLE_ONLINE_API, true);
-}

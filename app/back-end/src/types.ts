@@ -67,6 +67,7 @@ export interface SnapshotMessage {
     latestStatus: DeviceStatus | null;
     deviceSnapshots: DeviceActivitySnapshot[];
     recentActivities: RecentActivityItem[];
+    onlineCount: number;
   };
 }
 
@@ -146,6 +147,7 @@ export interface ErrorMessage {
 
 export type ServerToDashboardMessage =
   | SnapshotMessage
+  | OnlineCountMessage
   | ActivityBroadcastMessage
   | StatusBroadcastMessage
   | FoodSnapshotMessage
