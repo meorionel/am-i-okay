@@ -7,6 +7,11 @@ import { MessageToastProvider } from "@/src/components/message-toast-provider";
 export const metadata: Metadata = {
 	title: "Am I Okay",
 	description: "A quiet reflection of your digital space.",
+	icons: {
+		icon: "/logo.png",
+		shortcut: "/logo.png",
+		apple: "/logo.png",
+	},
 };
 
 export default function RootLayout({
