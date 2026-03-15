@@ -57,7 +57,7 @@ export async function fetchCurrentDevices(): Promise<CurrentDevicesResponse> {
 	}
 }
 
-export async function fetchFoodCounter(fingerprint: string): Promise<FoodCounterResponse> {
+export async function fetchFoodCounter(): Promise<FoodCounterResponse> {
 	const url = FOOD_COUNTER_PATH;
 
 	try {
@@ -81,7 +81,7 @@ export async function fetchFoodCounter(fingerprint: string): Promise<FoodCounter
 	}
 }
 
-export async function feedFood(foodId: number, fingerprint: string): Promise<FoodCounterResponse> {
+export async function feedFood(foodId: number): Promise<FoodCounterResponse> {
 	const url = FOOD_FEED_PATH;
 
 	try {
@@ -107,7 +107,10 @@ export async function feedFood(foodId: number, fingerprint: string): Promise<Foo
 
 		return parseFoodCounterResponse(await response.json());
 	} catch (error) {
+		if (error instanceof FoodRateLimitError) {
+			throw error;
+		}
 		console.warn(`[api] failed to post /api/food/feed at ${url}: ${toErrorMessage(error)}`);
-		return parseFoodCounterResponse(null);
+		throw error;
 	}
 }

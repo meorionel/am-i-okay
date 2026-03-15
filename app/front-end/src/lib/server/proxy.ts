@@ -2,6 +2,8 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
 	getBackendInternalApiBaseUrl,
+	getBackendInternalApiBaseUrlCandidates,
+	getBackendPublicWebSocketBaseUrl,
 	getDashboardApiToken,
 } from "@/src/lib/server/env";
 
@@ -27,6 +29,10 @@ async function signValue(value: string): Promise<string> {
 	);
 
 	return Buffer.from(digest).toString("base64url");
+}
+
+function encodeWebSocketPayload(payload: { role: "food" | "dashboard"; viewerId?: string; expiresAt: number }): string {
+	return Buffer.from(JSON.stringify(payload)).toString("base64url");
 }
 
 async function verifyViewerCookie(
@@ -69,6 +75,31 @@ export async function getOrIssueFoodViewer(): Promise<{
 	};
 }
 
+export async function createFoodWebSocketUrl(viewerId: string): Promise<string> {
+	const payload = encodeWebSocketPayload({
+		role: "food",
+		viewerId,
+		expiresAt: Date.now() + 5 * 60_000,
+	});
+	const signature = await signValue(payload);
+	const token = `${payload}.${signature}`;
+	const url = new URL("/ws/food", getBackendPublicWebSocketBaseUrl());
+	url.searchParams.set("token", token);
+	return url.toString();
+}
+
+export async function createDashboardWebSocketUrl(): Promise<string> {
+	const payload = encodeWebSocketPayload({
+		role: "dashboard",
+		expiresAt: Date.now() + 5 * 60_000,
+	});
+	const signature = await signValue(payload);
+	const token = `${payload}.${signature}`;
+	const url = new URL("/ws/dashboard", getBackendPublicWebSocketBaseUrl());
+	url.searchParams.set("token", token);
+	return url.toString();
+}
+
 export async function proxyToBackend(
 	path: string,
 	init?: RequestInit,
@@ -85,11 +116,25 @@ export async function proxyToBackend(
 		headers.set("x-food-viewer-id", options.viewerId);
 	}
 
-	const response = await fetch(`${getBackendInternalApiBaseUrl()}${path}`, {
-		...init,
-		headers,
-		cache: "no-store",
-	});
+	let response: Response | null = null;
+	let lastError: unknown = null;
+
+	for (const baseUrl of getBackendInternalApiBaseUrlCandidates()) {
+		try {
+			response = await fetch(`${baseUrl}${path}`, {
+				...init,
+				headers,
+				cache: "no-store",
+			});
+			break;
+		} catch (error) {
+			lastError = error;
+		}
+	}
+
+	if (!response) {
+		throw lastError ?? new Error(`failed to reach backend at ${getBackendInternalApiBaseUrl()}`);
+	}
 
 	const contentType = response.headers.get("content-type") ?? "application/json; charset=utf-8";
 	const bodyText = await response.text();

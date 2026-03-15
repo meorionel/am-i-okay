@@ -6,6 +6,7 @@
 - 浏览器只访问 Next 同源接口
 - Next route handler 代后端注入 `DASHBOARD_API_TOKEN`
 - food viewer 身份由前端服务端签发 `HttpOnly` cookie
+- food 实时数据通过同源接口签发短时 websocket 凭证，再订阅后端 `/ws/food`
 - `/debug` 默认仅开发模式可用
 - `/api/online` 默认仅开发模式可用
 
@@ -14,6 +15,7 @@
 参考 [`.env.example`](/Users/aliceclodia/Desktop/am-i-okay/app/front-end/.env.example)：
 
 - `BACKEND_INTERNAL_API_BASE_URL`
+- `BACKEND_PUBLIC_WS_BASE_URL`
 - `DASHBOARD_API_TOKEN`
 - `FRONTEND_ACCESS_TOKEN`
 - `ONLINE_MAX_CONNECTIONS`
@@ -39,7 +41,9 @@ bun run lint
 浏览器访问的是这些同源代理：
 
 - `GET /api/dashboard/current`
+- `GET /api/dashboard/socket`
 - `GET /api/dashboard/food`
+- `GET /api/dashboard/food/socket`
 - `POST /api/dashboard/feed`
 
 这些路由会在服务端调用后端真实接口：
@@ -65,6 +69,7 @@ bun run lint
 
 ```bash
 BACKEND_INTERNAL_API_BASE_URL=http://127.0.0.1:3000
+BACKEND_PUBLIC_WS_BASE_URL=ws://127.0.0.1:3000
 DASHBOARD_API_TOKEN=dev-dashboard-token
 ENABLE_DEBUG_PAGE=true
 ENABLE_ONLINE_API=true

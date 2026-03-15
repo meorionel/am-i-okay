@@ -43,6 +43,7 @@ export interface RecentActivity {
 export interface DashboardSnapshot {
 	devices: ActivityEvent[];
 	latestStatus: DeviceStatus | null;
+	recentActivities: RecentActivity[];
 }
 
 export interface CurrentDevicesResponse {
@@ -62,11 +63,20 @@ export interface FoodCounterResponse {
 	foods: FoodItem[];
 }
 
+export type FoodSocketMessage =
+	| { type: "food_snapshot"; payload: FoodCounterResponse }
+	| { type: "food_update"; payload: FoodCounterResponse }
+	| { type: "error"; payload: DashboardErrorPayload };
+
 export interface DashboardErrorPayload {
 	message: string;
 }
 
-export type DashboardMessage = { type: "snapshot"; payload: DashboardSnapshot } | { type: "activity"; payload: ActivityEvent } | { type: "status"; payload: DeviceStatus } | { type: "error"; payload: DashboardErrorPayload };
+export type DashboardMessage =
+	| { type: "snapshot"; payload: DashboardSnapshot }
+	| { type: "activity"; payload: ActivityEvent }
+	| { type: "status"; payload: DeviceStatus }
+	| { type: "error"; payload: DashboardErrorPayload };
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -305,6 +315,38 @@ export function parseFoodCounterResponse(input: unknown): FoodCounterResponse {
 	};
 }
 
+export function parseFoodSocketMessage(input: unknown): FoodSocketMessage | null {
+	if (!isRecord(input)) {
+		return null;
+	}
+
+	const type = readString(input.type);
+	if (!type || !isRecord(input.payload)) {
+		return null;
+	}
+
+	if (type === "food_snapshot" || type === "food_update") {
+		return {
+			type,
+			payload: parseFoodCounterResponse(input.payload),
+		};
+	}
+
+	if (type === "error") {
+		const message = readString(input.payload.message);
+		if (!message) {
+			return null;
+		}
+
+		return {
+			type: "error",
+			payload: { message },
+		};
+	}
+
+	return null;
+}
+
 function parseFoodItem(input: unknown): FoodItem | null {
 	if (!isRecord(input)) {
 		return null;
@@ -343,13 +385,16 @@ export function parseDashboardMessage(input: unknown): DashboardMessage | null {
 		}
 
 		const devices = input.payload.devices.map((item) => parseActivityEvent(item)).filter((event): event is ActivityEvent => event !== null);
-			const latestStatus = parseDeviceStatus(input.payload.latestStatus);
+		const latestStatus = parseDeviceStatus(input.payload.latestStatus);
+		const recentActivities = Array.isArray(input.payload.recentActivities)
+			? input.payload.recentActivities.map((item) => parseRecentActivity(item)).filter((event): event is RecentActivity => event !== null)
+			: [];
 
-			return {
-				type: "snapshot",
-				payload: { devices, latestStatus },
-			};
-		}
+		return {
+			type: "snapshot",
+			payload: { devices, latestStatus, recentActivities },
+		};
+	}
 
 	if (type === "activity") {
 		const event = parseActivityEvent(input.payload);

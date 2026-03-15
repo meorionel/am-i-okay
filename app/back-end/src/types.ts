@@ -79,6 +79,16 @@ export interface FoodCounterPayload {
   }[];
 }
 
+export interface FoodSnapshotMessage {
+  type: "food_snapshot";
+  payload: FoodCounterPayload;
+}
+
+export interface FoodUpdateMessage {
+  type: "food_update";
+  payload: FoodCounterPayload;
+}
+
 export interface ActivityBroadcastMessage {
   type: "activity";
   payload: ActivityEvent;
@@ -100,13 +110,16 @@ export type ServerToDashboardMessage =
   | SnapshotMessage
   | ActivityBroadcastMessage
   | StatusBroadcastMessage
+  | FoodSnapshotMessage
+  | FoodUpdateMessage
   | ErrorMessage;
 
-export type ClientRole = "agent" | "dashboard";
+export type ClientRole = "agent" | "dashboard" | "food";
 
 export interface WsClientData {
   role: ClientRole;
   connectionId: string;
+  viewerId?: string;
   agent?: {
     token: string;
     deviceId: string;

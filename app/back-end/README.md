@@ -59,6 +59,7 @@ bun run dev
 
 - `/ws/dashboard` 要求 dashboard token
 - `/ws/agent` 要求 agent token
+- `/ws/food` 要求前端签发的短时 viewer token
 - token 可以走 `Authorization: Bearer ...`
 - 如客户端库不方便加 header，可在握手时使用受限 query 参数 `?token=...`
 

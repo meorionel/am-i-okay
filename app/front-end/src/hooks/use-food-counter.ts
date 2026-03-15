@@ -3,13 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { gooeyToast } from "goey-toast";
 import { FoodRateLimitError, fetchFoodCounter, feedFood } from "@/src/lib/api";
-import type { FoodItem } from "@/src/types/activity";
+import { parseFoodSocketMessage, type FoodItem } from "@/src/types/activity";
 
 const FEED_COOLDOWN_MS = 3_000;
-const FOOD_POLL_INTERVAL_MS = 2_500;
 const FOOD_FALL_DURATION_MS = 3_200;
 const FOOD_DROP_LIFETIME_MS = FOOD_FALL_DURATION_MS;
 const MAX_DROPS_PER_SYNC = 6;
+const FOOD_SOCKET_RETRY_MS = 2_000;
 
 export interface FallingFood {
 	id: string;
@@ -86,18 +86,83 @@ export function useFoodCounter(): {
 
 	useEffect(() => {
 		let isActive = true;
+		let reconnectTimer: number | null = null;
+		let socket: WebSocket | null = null;
 
-		const bootstrap = async (): Promise<void> => {
+		const applyFoods = (nextFoods: FoodItem[]): void => {
+			const previousFoods = foodsRef.current;
+			if (previousFoods.length > 0) {
+				spawnDrops(nextFoods, previousFoods);
+			}
+
+			foodsRef.current = nextFoods;
+			setFoods(nextFoods);
+		};
+
+		const connectSocket = async (): Promise<void> => {
 			try {
-				const response = await fetchFoodCounter("");
+				const response = await fetch("/api/dashboard/food/socket", {
+					method: "GET",
+					cache: "no-store",
+					headers: {
+						Accept: "application/json",
+					},
+				});
+
 				if (!isActive) {
 					return;
 				}
 
-				setFoods(response.foods);
-				foodsRef.current = response.foods;
+				if (!response.ok) {
+					throw new Error(`food socket bootstrap failed with HTTP ${response.status}`);
+				}
+
+				const data = (await response.json()) as { url?: string };
+				if (!data.url) {
+					throw new Error("food socket bootstrap did not return a websocket url");
+				}
+
+				socket = new WebSocket(data.url);
+				socket.onmessage = (event) => {
+					if (!isActive) {
+						return;
+					}
+
+					try {
+						const message = parseFoodSocketMessage(JSON.parse(event.data));
+						if (!message) {
+							return;
+						}
+
+						if (message.type === "error") {
+							console.warn(`[food-ws] ${message.payload.message}`);
+							return;
+						}
+
+						applyFoods(message.payload.foods);
+					} catch (error) {
+						console.warn("[food-ws] failed to parse websocket payload", error);
+					}
+				};
+				socket.onclose = () => {
+					if (!isActive) {
+						return;
+					}
+
+					reconnectTimer = window.setTimeout(() => {
+						void connectSocket();
+					}, FOOD_SOCKET_RETRY_MS);
+				};
+				socket.onerror = (error) => {
+					console.warn("[food-ws] websocket error", error);
+				};
 			} catch (error) {
-				console.warn("[food] failed to bootstrap counter", error);
+				console.warn("[food-ws] failed to establish websocket", error);
+				if (isActive) {
+					reconnectTimer = window.setTimeout(() => {
+						void connectSocket();
+					}, FOOD_SOCKET_RETRY_MS);
+				}
 			} finally {
 				if (isActive) {
 					setIsLoading(false);
@@ -105,35 +170,30 @@ export function useFoodCounter(): {
 			}
 		};
 
-		void bootstrap();
+		const bootstrap = async (): Promise<void> => {
+			try {
+				const response = await fetchFoodCounter();
+				if (!isActive) {
+					return;
+				}
 
-		const pollTimer = window.setInterval(() => {
-			if (!isActive) {
-				return;
+				foodsRef.current = response.foods;
+				setFoods(response.foods);
+			} catch (error) {
+				console.warn("[food] failed to bootstrap counter", error);
 			}
 
-			void fetchFoodCounter("")
-				.then((response) => {
-					if (!isActive) {
-						return;
-					}
+			void connectSocket();
+		};
 
-					const previousFoods = foodsRef.current;
-					if (previousFoods.length > 0) {
-						spawnDrops(response.foods, previousFoods);
-					}
-
-					foodsRef.current = response.foods;
-					setFoods(response.foods);
-				})
-				.catch((error) => {
-					console.warn("[food] failed to poll counter", error);
-				});
-		}, FOOD_POLL_INTERVAL_MS);
+		void bootstrap();
 
 		return () => {
 			isActive = false;
-			window.clearInterval(pollTimer);
+			if (reconnectTimer !== null) {
+				window.clearTimeout(reconnectTimer);
+			}
+			socket?.close();
 		};
 	}, []);
 
@@ -155,7 +215,7 @@ export function useFoodCounter(): {
 		setActiveFoodId(foodId);
 
 		try {
-			const response = await feedFood(foodId, "");
+			const response = await feedFood(foodId);
 			const previousFoods = foodsRef.current;
 			setFoods(response.foods);
 			foodsRef.current = response.foods;

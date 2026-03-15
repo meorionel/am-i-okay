@@ -19,6 +19,51 @@ export function getBackendInternalApiBaseUrl(): string {
 	);
 }
 
+export function getBackendInternalApiBaseUrlCandidates(): string[] {
+	const primary = getBackendInternalApiBaseUrl();
+	const candidates = [primary];
+
+	try {
+		const url = new URL(primary);
+		const isHttp = url.protocol === "http:" || url.protocol === "https:";
+		if (!isHttp) {
+			return candidates;
+		}
+
+		if (url.hostname === "127.0.0.1") {
+			const next = new URL(url.toString());
+			next.hostname = "localhost";
+			candidates.push(trimTrailingSlash(next.toString()));
+		} else if (url.hostname === "localhost") {
+			const next = new URL(url.toString());
+			next.hostname = "127.0.0.1";
+			candidates.push(trimTrailingSlash(next.toString()));
+		}
+	} catch {
+		return candidates;
+	}
+
+	return [...new Set(candidates)];
+}
+
+export function getBackendPublicWebSocketBaseUrl(): string {
+	const explicit = process.env.BACKEND_PUBLIC_WS_BASE_URL?.trim();
+	if (explicit) {
+		return trimTrailingSlash(explicit);
+	}
+
+	const internal = getBackendInternalApiBaseUrl();
+	if (internal.startsWith("https://")) {
+		return `wss://${internal.slice("https://".length)}`;
+	}
+
+	if (internal.startsWith("http://")) {
+		return `ws://${internal.slice("http://".length)}`;
+	}
+
+	return internal;
+}
+
 export function getDashboardApiToken(): string {
 	const token = process.env.DASHBOARD_API_TOKEN?.trim();
 	if (!token) {

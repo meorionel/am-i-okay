@@ -1,3 +1,4 @@
+import type { FoodStore } from "./food";
 import type { ServerWebSocket } from "bun";
 import { parseAgentMessage } from "./schema";
 import type { ActivityStore } from "./store";
@@ -5,6 +6,8 @@ import type {
   ActivityBroadcastMessage,
   ActivityEvent,
   ErrorMessage,
+  FoodSnapshotMessage,
+  FoodUpdateMessage,
   ServerToDashboardMessage,
   SnapshotMessage,
   StatusBroadcastMessage,
@@ -17,18 +20,29 @@ type WsMessage = string | Uint8Array | ArrayBuffer;
 export class WebSocketHub {
   private readonly agents = new Set<ServerWebSocket<WsClientData>>();
   private readonly dashboards = new Set<ServerWebSocket<WsClientData>>();
+  private readonly foodSubscribers = new Set<ServerWebSocket<WsClientData>>();
   private readonly deviceIdsByAgent = new Map<
     ServerWebSocket<WsClientData>,
     Set<string>
   >();
 
-  constructor(private readonly store: ActivityStore) {}
+  constructor(
+    private readonly store: ActivityStore,
+    private readonly foodStore: FoodStore,
+  ) {}
 
   handleOpen(ws: ServerWebSocket<WsClientData>): void {
     if (ws.data.role === "agent") {
       this.agents.add(ws);
       this.deviceIdsByAgent.set(ws, new Set());
       console.log(`[ws] agent connected: ${ws.data.connectionId}`);
+      return;
+    }
+
+    if (ws.data.role === "food") {
+      this.foodSubscribers.add(ws);
+      console.log(`[ws] food subscriber connected: ${ws.data.connectionId}`);
+      this.sendFoodSnapshot(ws);
       return;
     }
 
@@ -43,7 +57,7 @@ export class WebSocketHub {
     if (ws.data.role !== "agent") {
       this.sendError(
         ws,
-        "dashboard connection is read-only; agent must connect to /ws/agent",
+        `${ws.data.role} connection is read-only; agent must connect to /ws/agent`,
       );
       ws.close(1008, "agent must connect to /ws/agent");
       return;
@@ -130,6 +144,8 @@ export class WebSocketHub {
       if (deviceIds && this.store.removeByDeviceIds(deviceIds)) {
         this.broadcastSnapshot();
       }
+    } else if (ws.data.role === "food") {
+      this.foodSubscribers.delete(ws);
     } else {
       this.dashboards.delete(ws);
     }
@@ -148,6 +164,23 @@ export class WebSocketHub {
     this.broadcastToDashboards(this.createSnapshotMessage());
   }
 
+  broadcastFoodUpdate(): void {
+    for (const ws of this.foodSubscribers) {
+      const viewerId = ws.data.viewerId;
+      if (!viewerId) {
+        continue;
+      }
+
+      const message: FoodUpdateMessage = {
+        type: "food_update",
+        payload: {
+          foods: this.foodStore.listFoods(viewerId),
+        },
+      };
+      this.safeSend(ws, message);
+    }
+  }
+
   private createSnapshotMessage(): SnapshotMessage {
     const message: SnapshotMessage = {
       type: "snapshot",
@@ -160,6 +193,23 @@ export class WebSocketHub {
     };
 
     return message;
+  }
+
+  private sendFoodSnapshot(ws: ServerWebSocket<WsClientData>): void {
+    const viewerId = ws.data.viewerId;
+    if (!viewerId) {
+      this.sendError(ws, "missing food viewer identity");
+      ws.close(1008, "missing food viewer identity");
+      return;
+    }
+
+    const message: FoodSnapshotMessage = {
+      type: "food_snapshot",
+      payload: {
+        foods: this.foodStore.listFoods(viewerId),
+      },
+    };
+    this.safeSend(ws, message);
   }
 
   private broadcastActivity(event: ActivityEvent): void {

@@ -1,4 +1,8 @@
 import type { AgentIdentityBinding, SecurityConfig } from "./config";
+import {
+  verifyDashboardWebSocketToken,
+  verifyFoodViewerToken,
+} from "./food-auth";
 import type { ClientRole, WsClientData } from "./types";
 
 const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
@@ -146,5 +150,53 @@ export function authenticateWebSocketRequest(
     role: auth.role,
     connectionId: crypto.randomUUID(),
     agent: auth.agent,
+  };
+}
+
+export async function authenticateDashboardWebSocketRequest(
+  req: Request,
+  config: SecurityConfig,
+): Promise<WsClientData | Response> {
+  const token = parseToken(req);
+  if (!token) {
+    return rejectJson(401, "missing bearer token");
+  }
+
+  if (token === config.dashboardToken) {
+    return {
+      role: "dashboard",
+      connectionId: crypto.randomUUID(),
+    };
+  }
+
+  const isValidTicket = await verifyDashboardWebSocketToken(token, config);
+  if (!isValidTicket) {
+    return rejectJson(403, "forbidden");
+  }
+
+  return {
+    role: "dashboard",
+    connectionId: crypto.randomUUID(),
+  };
+}
+
+export async function authenticateFoodWebSocketRequest(
+  req: Request,
+  config: SecurityConfig,
+): Promise<WsClientData | Response> {
+  const token = parseToken(req);
+  if (!token) {
+    return rejectJson(401, "missing viewer token");
+  }
+
+  const viewerId = await verifyFoodViewerToken(token, config);
+  if (!viewerId) {
+    return rejectJson(403, "forbidden");
+  }
+
+  return {
+    role: "food",
+    connectionId: crypto.randomUUID(),
+    viewerId,
   };
 }

@@ -2,7 +2,9 @@ import { FoodStore } from "./food";
 import { loadSecurityConfig, type StoredBackendConfig } from "./config";
 import {
   assertSecureTransport,
+  authenticateDashboardWebSocketRequest,
   authenticateHttpRequest,
+  authenticateFoodWebSocketRequest,
   authenticateWebSocketRequest,
   handleCorsPreflight,
 } from "./security";
@@ -17,7 +19,7 @@ export function startServer(config: StoredBackendConfig) {
   const security = loadSecurityConfig(config);
   const store = new ActivityStore();
   const foodStore = new FoodStore();
-  const wsHub = new WebSocketHub(store);
+  const wsHub = new WebSocketHub(store, foodStore);
 
   const server = Bun.serve<WsClientData>({
     hostname: host,
@@ -142,6 +144,7 @@ export function startServer(config: StoredBackendConfig) {
 
         try {
           const food = foodStore.toggle(rawFoodId as number, viewerId);
+          wsHub.broadcastFoodUpdate();
 
           return jsonResponse(req, security, {
             food,
@@ -207,7 +210,7 @@ export function startServer(config: StoredBackendConfig) {
       }
 
       if (url.pathname === "/ws/dashboard") {
-        const auth = authenticateWebSocketRequest(req, security, "dashboard");
+        const auth = await authenticateDashboardWebSocketRequest(req, security);
         if (auth instanceof Response) {
           return auth;
         }
@@ -225,6 +228,30 @@ export function startServer(config: StoredBackendConfig) {
           security,
           {
             error: "WebSocket upgrade failed for /ws/dashboard",
+          },
+          400,
+        );
+      }
+
+      if (url.pathname === "/ws/food") {
+        const auth = await authenticateFoodWebSocketRequest(req, security);
+        if (auth instanceof Response) {
+          return auth;
+        }
+
+        const upgraded = bunServer.upgrade(req, {
+          data: auth,
+        });
+
+        if (upgraded) {
+          return;
+        }
+
+        return jsonResponse(
+          req,
+          security,
+          {
+            error: "WebSocket upgrade failed for /ws/food",
           },
           400,
         );
