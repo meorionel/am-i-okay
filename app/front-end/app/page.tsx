@@ -16,7 +16,6 @@ export default function Home() {
 	const { isVerified, isCheckingStatus, isVerifying, progress, errorMessage, pageId, verify } = useHumanGate();
 	const { devices, latestStatus, recentActivities, connectionStatus, lastEventAt, isBootstrapping } = useDashboardStream(isVerified, pageId);
 	const onlineCount = useOnlineCount(isVerified, pageId);
-	const visibleTimeline = recentActivities.slice(0, 4);
 	const lastUpdated = lastEventAt ? formatTimelineTime(new Date(lastEventAt).toISOString()) : null;
 
 	if (isCheckingStatus) {
@@ -38,7 +37,7 @@ export default function Home() {
 				<FoodCounterSection enabled={isVerified} pageId={pageId} />
 				<DeviceStatusSection latestStatus={latestStatus} />
 				<ActiveDevicesSection devices={devices} />
-				<RecentActivitySection activities={visibleTimeline} />
+				<RecentActivitySection activities={recentActivities} />
 			</div>
 		</main>
 	);
