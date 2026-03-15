@@ -25,6 +25,8 @@ interface CapController {
 
 type CapConstructor = new (config?: { apiEndpoint?: string }, el?: HTMLElement) => CapController;
 
+const CAP_JS_DISABLE_WASM_DATA_URL = "data:application/wasm;base64,AA==";
+
 let humanPageId = "";
 let capConstructorPromise: Promise<CapConstructor> | null = null;
 
@@ -56,8 +58,21 @@ async function waitForWidgetReady(host: HTMLElement): Promise<void> {
 	});
 }
 
+function configureCapWasmUrl(): void {
+	if (typeof window === "undefined") {
+		return;
+	}
+
+	const capWindow = window as typeof window & { CAP_CUSTOM_WASM_URL?: string };
+	if (!capWindow.CAP_CUSTOM_WASM_URL) {
+		// Force the widget to skip the unreachable external CDN wasm and use its JS fallback.
+		capWindow.CAP_CUSTOM_WASM_URL = CAP_JS_DISABLE_WASM_DATA_URL;
+	}
+}
+
 function ensureCapConstructor(): Promise<CapConstructor> {
 	if (!capConstructorPromise) {
+		configureCapWasmUrl();
 		capConstructorPromise = import("@cap.js/widget").then((mod) => {
 			const ctor = "default" in mod ? mod.default : mod;
 			return ctor as unknown as CapConstructor;
