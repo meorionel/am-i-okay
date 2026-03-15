@@ -34,7 +34,7 @@ export function MessageBoardSection({ enabled, pageId }: { enabled: boolean; pag
 					type="button"
 					onClick={() => void sendMessage()}
 					disabled={isSending || isCoolingDown || !draft.trim()}
-					className="inline-flex h-12 min-w-28 items-center justify-center rounded-2xl bg-stone-900 px-5 text-sm font-medium text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+					className="inline-flex h-12 min-w-28 items-center justify-center rounded-2xl bg-[#a3b18a] px-5 text-sm font-medium text-white transition hover:bg-[#8f9f76] disabled:cursor-not-allowed disabled:bg-stone-300"
 				>
 					{isSending ? "发送中..." : isCoolingDown ? formatRemainingTime(cooldownRemainingMs) : "发送留言"}
 				</button>

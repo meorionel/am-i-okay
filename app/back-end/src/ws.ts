@@ -1,5 +1,5 @@
 import { validateHumanToken } from "./cap";
-import { findSensitiveWords } from "./message-filter";
+import { moderateMessageContent } from "./message-moderation";
 import { MessageRateLimiter } from "./message-rate-limit";
 import type { FoodStore } from "./food";
 import type { ServerWebSocket } from "bun";
@@ -384,11 +384,11 @@ export class WebSocketHub {
       return;
     }
 
-    const sensitiveWords = findSensitiveWords(body);
-    if (sensitiveWords.length > 0) {
+    const moderation = await moderateMessageContent(body);
+    if (!moderation.ok) {
       this.sendError(
         ws,
-        `留言包含敏感词，已被拦截：${sensitiveWords.slice(0, 3).join("、")}`,
+        moderation.detail ?? "留言包含敏感内容，已被拦截。",
         "SENSITIVE_WORD",
         requestId,
       );
