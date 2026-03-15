@@ -13,6 +13,7 @@ export function RecentActivitySection({ activities }: RecentActivitySectionProps
 				<div className="relative mt-7 pl-8 sm:pl-10">
 					<div className="space-y-9">
 						{activities.map((event) => {
+							const agentLabel = event.agentName?.trim() || formatDeviceLabel(event);
 							const secondaryLine = formatSecondaryLine(event);
 
 							return (
@@ -23,7 +24,7 @@ export function RecentActivitySection({ activities }: RecentActivitySectionProps
 									</p>
 									<p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-base tracking-[-0.03em] text-stone-700 sm:text-[1.08rem]">
 										<span className="font-medium text-stone-700">{event.app.title}</span>
-										<span className="text-xs text-stone-400 sm:text-sm">on {formatDeviceLabel(event)}</span>
+										<span className="text-xs text-stone-400 sm:text-sm">on {agentLabel}</span>
 									</p>
 									{secondaryLine ? <p className="mt-1.5 text-xs italic text-stone-400 sm:text-sm">{secondaryLine}</p> : null}
 								</article>

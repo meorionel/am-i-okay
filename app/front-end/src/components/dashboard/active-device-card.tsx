@@ -43,6 +43,7 @@ function resolveSecondaryLine(device: ActivityEvent): string | null {
 
 export function ActiveDeviceCard({ device }: ActiveDeviceCardProps) {
 	const deviceLabel = formatDeviceLabel(device);
+	const agentLabel = device.agentName?.trim() || deviceLabel;
 	const secondaryLine = resolveSecondaryLine(device);
 
 	return (
@@ -55,7 +56,7 @@ export function ActiveDeviceCard({ device }: ActiveDeviceCardProps) {
 					<div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 sm:text-sm">
 						<span className="inline-flex items-center gap-3">
 							<span className="h-2 w-2 rounded-full bg-[#a3b18a] shadow-[0_0_0_4px_rgba(163,177,138,0.12)]" />
-							<span className="truncate">{deviceLabel}</span>
+							<span className="truncate">{agentLabel}</span>
 						</span>
 						<span className="text-stone-300">/</span>
 						<span className="rounded-md bg-stone-100 px-2.5 py-1 text-[11px] text-stone-400">{formatPlatform(device.platform)}</span>
