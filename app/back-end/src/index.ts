@@ -23,8 +23,7 @@ import {
 import { startServer } from "./server";
 
 type MainAction =
-  | "toggle-server"
-  | "logs"
+  | "start-server"
   | "configure-server"
   | "configure-agent"
   | "view"
@@ -66,7 +65,7 @@ async function waitForReturnKey(): Promise<void> {
     await new Promise<void>((resolve) => {
       const handleData = (chunk: Buffer | string) => {
         const input = String(chunk).toLowerCase();
-        if (input.includes("q")) {
+        if (input.includes("q") || input.includes("\u001b")) {
           process.stdin.off("data", handleData);
           resolve();
         }
@@ -97,7 +96,7 @@ async function waitForReturnKey(): Promise<void> {
         process.exit(0);
       }
 
-      if (input === "q") {
+      if (input === "q" || input === "\u001b") {
         cleanup();
         resolve();
       }
@@ -110,9 +109,9 @@ async function waitForReturnKey(): Promise<void> {
   });
 }
 
-async function openLogsPage(config: StoredBackendConfig): Promise<void> {
+async function runServerSession(config: StoredBackendConfig): Promise<void> {
   note(getConfigSummary(config), "启动配置");
-  log.info("日志页面已打开，按 q 返回主菜单。");
+  log.info("后端已启动，按 q 或 Esc 关闭并返回主菜单。");
 
   const server = startServer(config);
 
@@ -381,15 +380,9 @@ async function main(): Promise<void> {
       message: "请选择操作",
       options: [
         {
-          value: "toggle-server",
-          label: `后端服务（当前：${config.serverEnabled ? "开启" : "关闭"}）`,
-          hint: "仅切换是否允许启动",
-        },
-        {
-          value: "logs",
-          label: "进入日志页面",
-          hint: config.serverEnabled ? "启动后端并查看日志" : "请先开启后端服务",
-          disabled: !config.serverEnabled,
+          value: "start-server",
+          label: "启动后端",
+          hint: "进入运行状态，按 q 或 Esc 返回主菜单",
         },
         { value: "configure-server", label: "配置服务参数" },
         { value: "configure-agent", label: "配置 Agent" },
@@ -409,18 +402,8 @@ async function main(): Promise<void> {
       continue;
     }
 
-    if (nextAction === "toggle-server") {
-      config = {
-        ...config,
-        serverEnabled: !config.serverEnabled,
-      };
-      await saveStoredConfig(config);
-      log.success(`后端服务已${config.serverEnabled ? "开启" : "关闭"}。`);
-      continue;
-    }
-
-    if (nextAction === "logs") {
-      await openLogsPage(config);
+    if (nextAction === "start-server") {
+      await runServerSession(config);
       continue;
     }
 

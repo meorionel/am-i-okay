@@ -366,7 +366,6 @@ export function getConfigSummary(config: StoredBackendConfig): string {
 
   return [
     `配置文件: ${CONFIG_FILE_PATH}`,
-    `启动开关: ${config.serverEnabled ? "开启" : "关闭"}`,
     `运行环境: ${config.env}`,
     `监听地址: ${config.host}:${config.port}`,
     `Dashboard Token: ${config.dashboardToken || "(空)"}`,
