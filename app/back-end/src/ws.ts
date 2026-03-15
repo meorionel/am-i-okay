@@ -13,6 +13,8 @@ import type {
   FoodUpdateMessage,
   MessageAckMessage,
   MessageBroadcastMessage,
+  MessageItem,
+  MessageSnapshotMessage,
   ServerToDashboardMessage,
   SnapshotMessage,
   StatusBroadcastMessage,
@@ -21,6 +23,7 @@ import type {
 import { serializeMessage, toText } from "./utils";
 
 type WsMessage = string | Uint8Array | ArrayBuffer;
+const MESSAGE_POOL_LIMIT = 10;
 
 export class WebSocketHub {
   private readonly agents = new Set<ServerWebSocket<WsClientData>>();
@@ -28,6 +31,7 @@ export class WebSocketHub {
   private readonly foodSubscribers = new Set<ServerWebSocket<WsClientData>>();
   private readonly messageSubscribers = new Set<ServerWebSocket<WsClientData>>();
   private readonly messageRateLimiter = new MessageRateLimiter();
+  private readonly messagePool: MessageItem[] = [];
   private readonly deviceIdsByAgent = new Map<
     ServerWebSocket<WsClientData>,
     Set<string>
@@ -56,6 +60,7 @@ export class WebSocketHub {
     if (ws.data.role === "message") {
       this.messageSubscribers.add(ws);
       console.log(`[ws] message subscriber connected: ${ws.data.connectionId}`);
+      this.sendMessageSnapshot(ws);
       return;
     }
 
@@ -232,6 +237,17 @@ export class WebSocketHub {
     this.safeSend(ws, message);
   }
 
+  private sendMessageSnapshot(ws: ServerWebSocket<WsClientData>): void {
+    this.pruneExpiredMessages();
+    const message: MessageSnapshotMessage = {
+      type: "message_snapshot",
+      payload: {
+        messages: this.messagePool,
+      },
+    };
+    this.safeSend(ws, message);
+  }
+
   private broadcastActivity(event: ActivityEvent): void {
     const message: ActivityBroadcastMessage = {
       type: "activity",
@@ -395,14 +411,23 @@ export class WebSocketHub {
       return;
     }
 
+    this.pruneExpiredMessages();
+
+    const messageItem: MessageItem = {
+      id: crypto.randomUUID(),
+      body,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 3 * 60_000).toISOString(),
+    };
+
+    this.messagePool.push(messageItem);
+    if (this.messagePool.length > MESSAGE_POOL_LIMIT) {
+      this.messagePool.splice(0, this.messagePool.length - MESSAGE_POOL_LIMIT);
+    }
+
     const message: MessageBroadcastMessage = {
       type: "message",
-      payload: {
-        id: crypto.randomUUID(),
-        body,
-        createdAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 3 * 60_000).toISOString(),
-      },
+      payload: messageItem,
     };
 
     this.broadcastToMessages(message);
@@ -421,5 +446,19 @@ export class WebSocketHub {
     for (const ws of this.messageSubscribers) {
       this.safeSend(ws, message);
     }
+  }
+
+  private pruneExpiredMessages(): void {
+    const now = Date.now();
+    const nextMessages = this.messagePool.filter((message) => {
+      const expiresAt = new Date(message.expiresAt).getTime();
+      return Number.isFinite(expiresAt) && expiresAt > now;
+    });
+
+    if (nextMessages.length === this.messagePool.length) {
+      return;
+    }
+
+    this.messagePool.splice(0, this.messagePool.length, ...nextMessages);
   }
 }

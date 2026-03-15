@@ -2,14 +2,15 @@
 
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { gooeyToast } from "goey-toast";
-import { pushMessageToast } from "@/src/components/message-toast-provider";
+import { pushMessageToast, replaceMessageToasts } from "@/src/components/message-toast-provider";
 import { createMessageSocket } from "@/src/lib/api";
 import { solveHumanChallenge } from "@/src/lib/human-gate";
 import { createRandomId } from "@/src/lib/random";
-import { parseMessageSocketMessage } from "@/src/types/activity";
+import { parseMessageSocketMessage, type MessageItem } from "@/src/types/activity";
 
 const MESSAGE_SOCKET_RETRY_MS = 2_000;
 const MESSAGE_COOLDOWN_STORAGE_KEY = "amiokay_message_cooldown_until";
+const MESSAGE_POOL_LIMIT = 10;
 
 type PendingRequest = {
 	resolve: () => void;
@@ -37,6 +38,28 @@ export function useMessageBoard(enabled: boolean, pageId: string): {
 	const reconnectTimerRef = useRef<number | null>(null);
 	const seenMessageIdsRef = useRef(new Set<string>());
 	const pendingRequestsRef = useRef(new Map<string, PendingRequest>());
+
+	const applyMessagePool = useEffectEvent((messages: MessageItem[]): void => {
+		const nextMessages = messages.slice(-MESSAGE_POOL_LIMIT);
+		seenMessageIdsRef.current = new Set(nextMessages.map((message) => message.id));
+		replaceMessageToasts(nextMessages);
+	});
+
+	const pushIncomingMessage = useEffectEvent((message: MessageItem): void => {
+		const nextIds = Array.from(seenMessageIdsRef.current);
+		const existingIndex = nextIds.indexOf(message.id);
+		if (existingIndex >= 0) {
+			nextIds.splice(existingIndex, 1);
+		}
+
+		nextIds.push(message.id);
+		if (nextIds.length > MESSAGE_POOL_LIMIT) {
+			nextIds.splice(0, nextIds.length - MESSAGE_POOL_LIMIT);
+		}
+
+		seenMessageIdsRef.current = new Set(nextIds);
+		pushMessageToast(message);
+	});
 
 	useEffect(() => {
 		if (typeof window === "undefined") {
@@ -164,13 +187,13 @@ export function useMessageBoard(enabled: boolean, pageId: string): {
 							return;
 						}
 
-						if (message.type === "message") {
-							if (seenMessageIdsRef.current.has(message.payload.id)) {
-								return;
-							}
+						if (message.type === "message_snapshot") {
+							applyMessagePool(message.payload.messages);
+							return;
+						}
 
-							seenMessageIdsRef.current.add(message.payload.id);
-							pushMessageToast(message.payload);
+						if (message.type === "message") {
+							pushIncomingMessage(message.payload);
 							return;
 						}
 

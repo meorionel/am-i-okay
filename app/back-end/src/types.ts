@@ -101,6 +101,13 @@ export interface MessageBroadcastMessage {
   payload: MessageItem;
 }
 
+export interface MessageSnapshotMessage {
+  type: "message_snapshot";
+  payload: {
+    messages: MessageItem[];
+  };
+}
+
 export interface MessageAckMessage {
   type: "message_ack";
   payload: {
@@ -136,6 +143,7 @@ export type ServerToDashboardMessage =
   | StatusBroadcastMessage
   | FoodSnapshotMessage
   | FoodUpdateMessage
+  | MessageSnapshotMessage
   | MessageBroadcastMessage
   | MessageAckMessage
   | ErrorMessage;

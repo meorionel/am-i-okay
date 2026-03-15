@@ -90,6 +90,7 @@ export type DashboardMessage =
 	| { type: "error"; payload: DashboardErrorPayload };
 
 export type MessageSocketMessage =
+	| { type: "message_snapshot"; payload: { messages: MessageItem[] } }
 	| { type: "message"; payload: MessageItem }
 	| { type: "message_ack"; payload: { requestId: string; nextAllowedAt: string } }
 	| { type: "error"; payload: DashboardErrorPayload };
@@ -369,6 +370,18 @@ export function parseMessageSocketMessage(input: unknown): MessageSocketMessage 
 	if (type === "message") {
 		const message = parseMessageItem(input.payload);
 		return message ? { type: "message", payload: message } : null;
+	}
+
+	if (type === "message_snapshot") {
+		const messages = Array.isArray(input.payload.messages)
+			? input.payload.messages.map((item) => parseMessageItem(item)).filter((item): item is MessageItem => item !== null)
+			: [];
+		return {
+			type: "message_snapshot",
+			payload: {
+				messages,
+			},
+		};
 	}
 
 	if (type === "message_ack") {
