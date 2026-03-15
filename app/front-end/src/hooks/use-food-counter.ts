@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { gooeyToast } from "goey-toast";
 import { solveHumanChallenge } from "@/src/lib/human-gate";
 import { FoodRateLimitError, fetchFoodCounter, feedFood } from "@/src/lib/api";
+import { createRandomId } from "@/src/lib/random";
 import { parseFoodSocketMessage, type FoodItem } from "@/src/types/activity";
 
 const FEED_COOLDOWN_MS = 3_000;
@@ -36,7 +37,7 @@ function createFoodDrops(foods: FoodItem[], previousFoods: FoodItem[]): FallingF
 			const sizePx = sizeRem * 16;
 
 			drops.push({
-				id: `${food.id}-${Date.now()}-${crypto.randomUUID()}`,
+				id: `${food.id}-${Date.now()}-${createRandomId()}`,
 				emoji: food.emoji,
 				left: 6 + Math.random() * 88,
 				sizeRem,

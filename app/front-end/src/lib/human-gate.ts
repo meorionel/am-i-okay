@@ -1,5 +1,7 @@
 "use client";
 
+import { createRandomId } from "@/src/lib/random";
+
 interface CapSolveProgressListener {
 	(event: CustomEvent<{ progress: number }>): void;
 }
@@ -71,7 +73,7 @@ export function getHumanPageId(): string {
 	}
 
 	if (!humanPageId) {
-		humanPageId = crypto.randomUUID();
+		humanPageId = createRandomId();
 	}
 
 	return humanPageId;
