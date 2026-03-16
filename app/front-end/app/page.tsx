@@ -8,6 +8,7 @@ import { DeviceStatusSection } from "@/src/components/dashboard/device-status-se
 import { FoodCounterSection } from "@/src/components/dashboard/food-counter-section";
 import { MessageBoardSection } from "@/src/components/dashboard/message-board-section";
 import { RecentActivitySection } from "@/src/components/dashboard/recent-activity-section";
+import { SiteFooterSection } from "@/src/components/dashboard/site-footer-section";
 import { formatTimelineTime } from "@/src/components/dashboard/dashboard-utils";
 import { useDashboardStream } from "@/src/hooks/use-dashboard-stream";
 import { useHumanGate } from "@/src/hooks/use-human-gate";
@@ -39,6 +40,7 @@ export default function Home() {
 				<DeviceStatusSection latestStatus={latestStatus} />
 				<ActiveDevicesSection devices={devices} />
 				<RecentActivitySection activities={recentActivities} />
+				<SiteFooterSection />
 			</div>
 		</main>
 	);
