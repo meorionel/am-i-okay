@@ -95,7 +95,7 @@ bun run dev
 ## Food 身份
 
 - 后端不再接受 `x-browser-fingerprint`
-- food 请求必须带可信代理注入的 `x-food-viewer-id`
+- food 请求必须带可信代理注入的 `x-amiokay-viewer-id`
 - 正常浏览器流量应通过前端同源代理访问
 - `POST /api/food/feed` 现在还必须带 `humanToken`，并且 token 只能用于一次投喂
 

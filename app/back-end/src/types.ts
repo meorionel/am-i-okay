@@ -97,31 +97,18 @@ export interface FoodUpdateMessage {
   payload: FoodCounterPayload;
 }
 
-export interface MessageItem {
+export interface GuestbookMessage {
   id: string;
   body: string;
   createdAt: string;
-  expiresAt: string;
 }
 
-export interface MessageBroadcastMessage {
-  type: "message";
-  payload: MessageItem;
-}
-
-export interface MessageSnapshotMessage {
-  type: "message_snapshot";
-  payload: {
-    messages: MessageItem[];
-  };
-}
-
-export interface MessageAckMessage {
-  type: "message_ack";
-  payload: {
-    requestId: string;
-    nextAllowedAt: string;
-  };
+export interface GuestbookListResponse {
+  items: GuestbookMessage[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }
 
 export interface ActivityBroadcastMessage {
@@ -152,12 +139,9 @@ export type ServerToDashboardMessage =
   | StatusBroadcastMessage
   | FoodSnapshotMessage
   | FoodUpdateMessage
-  | MessageSnapshotMessage
-  | MessageBroadcastMessage
-  | MessageAckMessage
   | ErrorMessage;
 
-export type ClientRole = "agent" | "dashboard" | "food" | "message";
+export type ClientRole = "agent" | "dashboard" | "food";
 
 export interface WsClientData {
   role: ClientRole;

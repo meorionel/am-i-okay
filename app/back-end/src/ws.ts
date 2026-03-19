@@ -1,6 +1,3 @@
-import { validateHumanToken } from "./cap";
-import { moderateMessageContent } from "./message-moderation";
-import { MessageRateLimiter } from "./message-rate-limit";
 import type { FoodStore } from "./food";
 import type { ServerWebSocket } from "bun";
 import { parseAgentMessage } from "./schema";
@@ -11,10 +8,6 @@ import type {
   ErrorMessage,
   FoodSnapshotMessage,
   FoodUpdateMessage,
-  MessageAckMessage,
-  MessageBroadcastMessage,
-  MessageItem,
-  MessageSnapshotMessage,
   OnlineCountMessage,
   ServerToDashboardMessage,
   SnapshotMessage,
@@ -24,15 +17,11 @@ import type {
 import { serializeMessage, toText } from "./utils";
 
 type WsMessage = string | Uint8Array | ArrayBuffer;
-const MESSAGE_POOL_LIMIT = 10;
 
 export class WebSocketHub {
   private readonly agents = new Set<ServerWebSocket<WsClientData>>();
   private readonly dashboards = new Set<ServerWebSocket<WsClientData>>();
   private readonly foodSubscribers = new Set<ServerWebSocket<WsClientData>>();
-  private readonly messageSubscribers = new Set<ServerWebSocket<WsClientData>>();
-  private readonly messageRateLimiter = new MessageRateLimiter();
-  private readonly messagePool: MessageItem[] = [];
   private readonly deviceIdsByAgent = new Map<
     ServerWebSocket<WsClientData>,
     Set<string>
@@ -58,13 +47,6 @@ export class WebSocketHub {
       return;
     }
 
-    if (ws.data.role === "message") {
-      this.messageSubscribers.add(ws);
-      console.log(`[ws] message subscriber connected: ${ws.data.connectionId}`);
-      this.sendMessageSnapshot(ws);
-      return;
-    }
-
     this.dashboards.add(ws);
     console.log(`[ws] dashboard connected: ${ws.data.connectionId}`);
     this.sendSnapshot(ws);
@@ -75,19 +57,13 @@ export class WebSocketHub {
     ws: ServerWebSocket<WsClientData>,
     message: WsMessage,
   ): Promise<void> {
-    const text = toText(message);
-
-    if (ws.data.role === "message") {
-      await this.handleMessageBoardInput(ws, text);
-      return;
-    }
-
     if (ws.data.role !== "agent") {
       this.sendError(ws, `${ws.data.role} connection is read-only`, "READ_ONLY");
       ws.close(1008, `${ws.data.role} is read-only`);
       return;
     }
 
+    const text = toText(message);
     const parsed = parseAgentMessage(text);
     if (!parsed.ok) {
       this.sendError(ws, parsed.error);
@@ -171,8 +147,6 @@ export class WebSocketHub {
       }
     } else if (ws.data.role === "food") {
       this.foodSubscribers.delete(ws);
-    } else if (ws.data.role === "message") {
-      this.messageSubscribers.delete(ws);
     } else {
       this.dashboards.delete(ws);
       this.broadcastOnlineCount();
@@ -252,17 +226,6 @@ export class WebSocketHub {
     this.safeSend(ws, message);
   }
 
-  private sendMessageSnapshot(ws: ServerWebSocket<WsClientData>): void {
-    this.pruneExpiredMessages();
-    const message: MessageSnapshotMessage = {
-      type: "message_snapshot",
-      payload: {
-        messages: this.messagePool,
-      },
-    };
-    this.safeSend(ws, message);
-  }
-
   private broadcastActivity(event: ActivityEvent): void {
     const message: ActivityBroadcastMessage = {
       type: "activity",
@@ -337,143 +300,5 @@ export class WebSocketHub {
     }
 
     this.deviceIdsByAgent.set(ws, new Set([deviceId]));
-  }
-
-  private async handleMessageBoardInput(
-    ws: ServerWebSocket<WsClientData>,
-    rawMessage: string,
-  ): Promise<void> {
-    const viewerId = ws.data.viewerId;
-    const ip = ws.data.ip ?? "unknown";
-    if (!viewerId) {
-      this.sendError(ws, "missing message viewer identity", "MISSING_VIEWER");
-      ws.close(1008, "missing message viewer identity");
-      return;
-    }
-
-    let payload: unknown;
-    try {
-      payload = JSON.parse(rawMessage);
-    } catch {
-      this.sendError(ws, "message payload must be valid JSON", "INVALID_JSON");
-      return;
-    }
-
-    if (typeof payload !== "object" || payload === null) {
-      this.sendError(ws, "message payload must be a JSON object", "INVALID_PAYLOAD");
-      return;
-    }
-
-    const candidate = payload as Record<string, unknown>;
-    const type = candidate.type;
-    const requestId = typeof candidate.requestId === "string" ? candidate.requestId.trim() : "";
-    const body = typeof candidate.body === "string" ? candidate.body.trim() : "";
-    const humanToken =
-      typeof candidate.humanToken === "string" ? candidate.humanToken.trim() : "";
-
-    if (type !== "message_send") {
-      this.sendError(ws, "unsupported message websocket event", "UNSUPPORTED_EVENT", requestId);
-      return;
-    }
-
-    if (!requestId) {
-      this.sendError(ws, "missing requestId", "INVALID_REQUEST_ID");
-      return;
-    }
-
-    if (body.length === 0) {
-      this.sendError(ws, "留言不能为空", "EMPTY_MESSAGE", requestId);
-      return;
-    }
-
-    if (body.length > 20) {
-      this.sendError(ws, "留言不能超过 20 个字符", "MESSAGE_TOO_LONG", requestId);
-      return;
-    }
-
-    if (humanToken.length === 0) {
-      this.sendError(ws, "缺少人机验证结果", "MISSING_HUMAN_TOKEN", requestId);
-      return;
-    }
-
-    const rateLimit = this.messageRateLimiter.registerAttempt(viewerId, ip);
-    if (!rateLimit.ok) {
-      this.sendError(
-        ws,
-        rateLimit.message,
-        rateLimit.code,
-        requestId,
-        rateLimit.retryAfterMs,
-        rateLimit.frozenUntil,
-      );
-      return;
-    }
-
-    const isHuman = await validateHumanToken("message", humanToken);
-    if (!isHuman) {
-      this.sendError(ws, "人机验证未通过，请重试", "INVALID_HUMAN_TOKEN", requestId);
-      return;
-    }
-
-    const moderation = await moderateMessageContent(body);
-    if (!moderation.ok) {
-      this.sendError(
-        ws,
-        moderation.detail ?? "留言包含敏感内容，已被拦截。",
-        "SENSITIVE_WORD",
-        requestId,
-      );
-      return;
-    }
-
-    this.pruneExpiredMessages();
-
-    const messageItem: MessageItem = {
-      id: crypto.randomUUID(),
-      body,
-      createdAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 3 * 60_000).toISOString(),
-    };
-
-    this.messagePool.push(messageItem);
-    if (this.messagePool.length > MESSAGE_POOL_LIMIT) {
-      this.messagePool.splice(0, this.messagePool.length - MESSAGE_POOL_LIMIT);
-    }
-
-    const message: MessageBroadcastMessage = {
-      type: "message",
-      payload: messageItem,
-    };
-
-    this.broadcastToMessages(message);
-
-    const ack: MessageAckMessage = {
-      type: "message_ack",
-      payload: {
-        requestId,
-        nextAllowedAt: this.messageRateLimiter.markSuccess(viewerId),
-      },
-    };
-    this.safeSend(ws, ack);
-  }
-
-  private broadcastToMessages(message: MessageBroadcastMessage): void {
-    for (const ws of this.messageSubscribers) {
-      this.safeSend(ws, message);
-    }
-  }
-
-  private pruneExpiredMessages(): void {
-    const now = Date.now();
-    const nextMessages = this.messagePool.filter((message) => {
-      const expiresAt = new Date(message.expiresAt).getTime();
-      return Number.isFinite(expiresAt) && expiresAt > now;
-    });
-
-    if (nextMessages.length === this.messagePool.length) {
-      return;
-    }
-
-    this.messagePool.splice(0, this.messagePool.length, ...nextMessages);
   }
 }

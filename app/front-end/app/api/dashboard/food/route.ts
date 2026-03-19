@@ -1,6 +1,6 @@
 import {
 	createProxyErrorResponse,
-	getOrIssueFoodViewer,
+	getOrIssueVisitor,
 	proxyToBackend,
 	requireHumanGate,
 } from "@/src/lib/server/proxy";
@@ -14,7 +14,7 @@ export async function GET(request: Request): Promise<Response> {
 			return gateResponse;
 		}
 
-		const { viewerId, cookieValue } = await getOrIssueFoodViewer();
+		const { viewerId, cookieValue } = await getOrIssueVisitor();
 		return await proxyToBackend(
 			"/api/food",
 			{

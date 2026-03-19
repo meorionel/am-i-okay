@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "goey-toast/styles.css";
 import { GooeyToastProvider } from "@/src/components/gooey-toast-provider";
-import { MessageToastProvider } from "@/src/components/message-toast-provider";
 
 export const metadata: Metadata = {
 	title: "Am I Okay",
@@ -24,7 +23,6 @@ export default function RootLayout({
 			<body className="antialiased">
 				{children}
 				<GooeyToastProvider />
-				<MessageToastProvider />
 			</body>
 		</html>
 	);

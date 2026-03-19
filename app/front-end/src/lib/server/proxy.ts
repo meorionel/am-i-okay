@@ -8,7 +8,7 @@ import {
 	getHumanGateCookieSecret,
 } from "@/src/lib/server/env";
 
-const FOOD_VIEWER_COOKIE = "amiokay_food_viewer";
+const VIEWER_COOKIE = "amiokay_viewer";
 const HUMAN_GATE_COOKIE = "amiokay_human_gate";
 
 interface HumanGateCookiePayload {
@@ -56,7 +56,7 @@ async function signHumanGateValue(value: string): Promise<string> {
 }
 
 function encodeWebSocketPayload(payload: {
-	role: "food" | "dashboard" | "message";
+	role: "food" | "dashboard";
 	viewerId?: string;
 	expiresAt: number;
 }): string {
@@ -116,13 +116,13 @@ export async function hasValidHumanGate(): Promise<boolean> {
 	return await verifyHumanGateCookie(cookieStore.get(HUMAN_GATE_COOKIE)?.value);
 }
 
-export async function getOrIssueFoodViewer(): Promise<{
+export async function getOrIssueVisitor(): Promise<{
 	viewerId: string;
 	cookieValue: string | null;
 }> {
 	const cookieStore = await cookies();
 	const existing = await verifyViewerCookie(
-		cookieStore.get(FOOD_VIEWER_COOKIE)?.value,
+		cookieStore.get(VIEWER_COOKIE)?.value,
 	);
 	if (existing) {
 		return {
@@ -165,19 +165,6 @@ export async function createDashboardWebSocketUrl(): Promise<string> {
 	return url.toString();
 }
 
-export async function createMessageWebSocketUrl(viewerId: string): Promise<string> {
-	const payload = encodeWebSocketPayload({
-		role: "message",
-		viewerId,
-		expiresAt: Date.now() + 5 * 60_000,
-	});
-	const signature = await signValue(payload);
-	const token = `${payload}.${signature}`;
-	const url = new URL("/ws/message", getBackendPublicWebSocketBaseUrl());
-	url.searchParams.set("token", token);
-	return url.toString();
-}
-
 export async function proxyToBackend(
 	path: string,
 	init?: RequestInit,
@@ -191,7 +178,7 @@ export async function proxyToBackend(
 	headers.set("authorization", `Bearer ${getDashboardApiToken()}`);
 
 	if (options?.viewerId) {
-		headers.set("x-food-viewer-id", options.viewerId);
+		headers.set("x-amiokay-viewer-id", options.viewerId);
 	}
 
 	let response: Response | null = null;
@@ -225,7 +212,7 @@ export async function proxyToBackend(
 	});
 
 	if (options?.cookieValue) {
-		nextResponse.cookies.set(FOOD_VIEWER_COOKIE, options.cookieValue, {
+		nextResponse.cookies.set(VIEWER_COOKIE, options.cookieValue, {
 			httpOnly: true,
 			sameSite: "lax",
 			secure: process.env.NODE_ENV === "production",

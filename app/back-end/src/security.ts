@@ -2,7 +2,6 @@ import type { AgentIdentityBinding, SecurityConfig } from "./config";
 import {
   verifyDashboardWebSocketToken,
   verifyFoodViewerToken,
-  verifyMessageViewerToken,
 } from "./food-auth";
 import type { ClientRole, WsClientData } from "./types";
 
@@ -220,28 +219,6 @@ export async function authenticateFoodWebSocketRequest(
 
   return {
     role: "food",
-    connectionId: crypto.randomUUID(),
-    viewerId,
-    ip: parseClientIp(req),
-  };
-}
-
-export async function authenticateMessageWebSocketRequest(
-  req: Request,
-  config: SecurityConfig,
-): Promise<WsClientData | Response> {
-  const token = parseToken(req);
-  if (!token) {
-    return rejectJson(401, "missing viewer token");
-  }
-
-  const viewerId = await verifyMessageViewerToken(token, config);
-  if (!viewerId) {
-    return rejectJson(403, "forbidden");
-  }
-
-  return {
-    role: "message",
     connectionId: crypto.randomUUID(),
     viewerId,
     ip: parseClientIp(req),

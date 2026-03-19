@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createProxyErrorResponse, getOrIssueFoodViewer, proxyToBackend, requireHumanGate } from "@/src/lib/server/proxy";
+import { createProxyErrorResponse, getOrIssueVisitor, proxyToBackend, requireHumanGate } from "@/src/lib/server/proxy";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ export async function POST(request: Request): Promise<Response> {
 			return gateResponse;
 		}
 
-		const { viewerId, cookieValue } = await getOrIssueFoodViewer();
+		const { viewerId, cookieValue } = await getOrIssueVisitor();
 		const payload = (await request.json()) as {
 			id?: number;
 			humanToken?: string;

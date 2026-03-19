@@ -64,13 +64,6 @@ export interface FoodCounterResponse {
 	foods: FoodItem[];
 }
 
-export interface MessageItem {
-	id: string;
-	body: string;
-	createdAt: string;
-	expiresAt: string;
-}
-
 export type FoodSocketMessage =
 	| { type: "food_snapshot"; payload: FoodCounterResponse }
 	| { type: "food_update"; payload: FoodCounterResponse }
@@ -89,12 +82,6 @@ export type DashboardMessage =
 	| { type: "online-count"; payload: { count: number } }
 	| { type: "activity"; payload: ActivityEvent }
 	| { type: "status"; payload: DeviceStatus }
-	| { type: "error"; payload: DashboardErrorPayload };
-
-export type MessageSocketMessage =
-	| { type: "message_snapshot"; payload: { messages: MessageItem[] } }
-	| { type: "message"; payload: MessageItem }
-	| { type: "message_ack"; payload: { requestId: string; nextAllowedAt: string } }
 	| { type: "error"; payload: DashboardErrorPayload };
 
 type UnknownRecord = Record<string, unknown>;
@@ -359,47 +346,6 @@ export function parseFoodSocketMessage(input: unknown): FoodSocketMessage | null
 	return null;
 }
 
-export function parseMessageSocketMessage(input: unknown): MessageSocketMessage | null {
-	if (!isRecord(input)) {
-		return null;
-	}
-
-	const type = readString(input.type);
-	if (!type || !isRecord(input.payload)) {
-		return null;
-	}
-
-	if (type === "message") {
-		const message = parseMessageItem(input.payload);
-		return message ? { type: "message", payload: message } : null;
-	}
-
-	if (type === "message_snapshot") {
-		const messages = Array.isArray(input.payload.messages)
-			? input.payload.messages.map((item) => parseMessageItem(item)).filter((item): item is MessageItem => item !== null)
-			: [];
-		return {
-			type: "message_snapshot",
-			payload: {
-				messages,
-			},
-		};
-	}
-
-	if (type === "message_ack") {
-		const requestId = readString(input.payload.requestId);
-		const nextAllowedAt = readString(input.payload.nextAllowedAt);
-		return requestId && nextAllowedAt ? { type: "message_ack", payload: { requestId, nextAllowedAt } } : null;
-	}
-
-	if (type === "error") {
-		const errorPayload = parseErrorPayload(input.payload);
-		return errorPayload ? { type: "error", payload: errorPayload } : null;
-	}
-
-	return null;
-}
-
 function parseFoodItem(input: unknown): FoodItem | null {
 	if (!isRecord(input)) {
 		return null;
@@ -419,28 +365,6 @@ function parseFoodItem(input: unknown): FoodItem | null {
 		emoji,
 		totalCount,
 		viewerCount,
-	};
-}
-
-function parseMessageItem(input: unknown): MessageItem | null {
-	if (!isRecord(input)) {
-		return null;
-	}
-
-	const id = readString(input.id);
-	const body = readString(input.body);
-	const createdAt = readString(input.createdAt);
-	const expiresAt = readString(input.expiresAt);
-
-	if (!id || !body || !createdAt || !expiresAt) {
-		return null;
-	}
-
-	return {
-		id,
-		body,
-		createdAt,
-		expiresAt,
 	};
 }
 

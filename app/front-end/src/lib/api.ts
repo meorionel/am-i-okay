@@ -4,11 +4,17 @@ import {
 	type CurrentDevicesResponse,
 	type FoodCounterResponse,
 } from "@/src/types/activity";
+import {
+	parseGuestbookCreateResponse,
+	parseGuestbookListResponse,
+	type GuestbookCreateResponse,
+	type GuestbookListResponse,
+} from "@/src/types/guestbook";
 
 const CURRENT_DEVICES_PATH = "/api/dashboard/current";
 const FOOD_COUNTER_PATH = "/api/dashboard/food";
 const FOOD_FEED_PATH = "/api/dashboard/feed";
-const MESSAGE_SOCKET_PATH = "/api/dashboard/message/socket";
+const GUESTBOOK_MESSAGES_PATH = "/api/dashboard/messages";
 
 function createHumanHeaders(pageId: string): HeadersInit {
 	return {
@@ -21,28 +27,6 @@ export class FoodRateLimitError extends Error {
 		super("RATE_LIMITED");
 		this.name = "FoodRateLimitError";
 	}
-}
-
-export async function createMessageSocket(pageId: string): Promise<string> {
-	const response = await fetch(MESSAGE_SOCKET_PATH, {
-		method: "GET",
-		cache: "no-store",
-		headers: {
-			Accept: "application/json",
-			...createHumanHeaders(pageId),
-		},
-	});
-
-	if (!response.ok) {
-		throw new Error(`createMessageSocket failed with HTTP ${response.status}`);
-	}
-
-	const data = (await response.json()) as { url?: string };
-	if (typeof data.url !== "string" || data.url.length === 0) {
-		throw new Error("message socket bootstrap did not return a websocket url");
-	}
-
-	return data.url;
 }
 
 function toErrorMessage(error: unknown): string {
@@ -144,6 +128,64 @@ export async function feedFood(pageId: string, foodId: number, humanToken: strin
 			throw error;
 		}
 		console.warn(`[api] failed to post /api/food/feed at ${url}: ${toErrorMessage(error)}`);
+		throw error;
+	}
+}
+
+export async function fetchGuestbookMessages(pageId: string, page: number, pageSize = 20): Promise<GuestbookListResponse> {
+	const url = `${GUESTBOOK_MESSAGES_PATH}?page=${page}&pageSize=${pageSize}`;
+
+	try {
+		const response = await fetch(url, {
+			method: "GET",
+			cache: "no-store",
+			headers: {
+				Accept: "application/json",
+				...createHumanHeaders(pageId),
+			},
+		});
+
+		if (!response.ok) {
+			throw new Error(`fetchGuestbookMessages failed with HTTP ${response.status}`);
+		}
+
+		return parseGuestbookListResponse(await response.json());
+	} catch (error) {
+		console.warn(`[api] failed to fetch guestbook messages at ${url}: ${toErrorMessage(error)}`);
+		throw error;
+	}
+}
+
+export async function createGuestbookMessage(pageId: string, body: string, humanToken: string): Promise<GuestbookCreateResponse> {
+	try {
+		const response = await fetch(GUESTBOOK_MESSAGES_PATH, {
+			method: "POST",
+			cache: "no-store",
+			headers: {
+				Accept: "application/json",
+				"Content-Type": "application/json",
+				...createHumanHeaders(pageId),
+			},
+			body: JSON.stringify({
+				body,
+				humanToken,
+			}),
+		});
+
+		const payload = await response.json().catch(() => null);
+		if (!response.ok) {
+			const message = typeof payload?.error === "string" ? payload.error : `createGuestbookMessage failed with HTTP ${response.status}`;
+			throw new Error(message);
+		}
+
+		const parsed = parseGuestbookCreateResponse(payload);
+		if (!parsed) {
+			throw new Error("guestbook create response payload is invalid");
+		}
+
+		return parsed;
+	} catch (error) {
+		console.warn(`[api] failed to post guestbook message: ${toErrorMessage(error)}`);
 		throw error;
 	}
 }

@@ -1,7 +1,7 @@
 import type { SecurityConfig } from "./config";
 
 interface WebSocketTicketPayload {
-  role: "food" | "dashboard" | "message";
+  role: "food" | "dashboard";
   viewerId?: string;
   expiresAt: number;
 }
@@ -44,8 +44,7 @@ async function verifyWebSocketTicket(
     ) as Partial<WebSocketTicketPayload>;
     if (
       (parsed.role !== "food" &&
-        parsed.role !== "dashboard" &&
-        parsed.role !== "message") ||
+        parsed.role !== "dashboard") ||
       typeof parsed.expiresAt !== "number"
     ) {
       return null;
@@ -55,7 +54,7 @@ async function verifyWebSocketTicket(
       return null;
     }
 
-    if (parsed.role === "food" || parsed.role === "message") {
+    if (parsed.role === "food") {
       if (
         typeof parsed.viewerId !== "string" ||
         parsed.viewerId.trim().length === 0
@@ -85,14 +84,6 @@ export async function verifyFoodViewerToken(
 ): Promise<string | null> {
   const ticket = await verifyWebSocketTicket(token, config);
   return ticket?.role === "food" ? ticket.viewerId ?? null : null;
-}
-
-export async function verifyMessageViewerToken(
-  token: string,
-  config: Pick<SecurityConfig, "dashboardToken">,
-): Promise<string | null> {
-  const ticket = await verifyWebSocketTicket(token, config);
-  return ticket?.role === "message" ? ticket.viewerId ?? null : null;
 }
 
 export async function verifyDashboardWebSocketToken(

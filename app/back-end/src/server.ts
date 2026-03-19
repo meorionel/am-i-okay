@@ -1,4 +1,5 @@
 import { FoodStore } from "./food";
+import { GuestbookStore, parseGuestbookPage, parseGuestbookPageSize } from "./guestbook";
 import {
   createHumanChallenge,
   redeemHumanChallenge,
@@ -10,10 +11,11 @@ import {
   authenticateDashboardWebSocketRequest,
   authenticateHttpRequest,
   authenticateFoodWebSocketRequest,
-  authenticateMessageWebSocketRequest,
   authenticateWebSocketRequest,
   handleCorsPreflight,
 } from "./security";
+import { moderateMessageContent } from "./message-moderation";
+import { MessageRateLimiter } from "./message-rate-limit";
 import { ActivityStore } from "./store";
 import type { WsClientData } from "./types";
 import { jsonResponse } from "./utils";
@@ -25,6 +27,8 @@ export function startServer(config: StoredBackendConfig) {
   const security = loadSecurityConfig(config);
   const store = new ActivityStore();
   const foodStore = new FoodStore();
+  const guestbookStore = new GuestbookStore();
+  const messageRateLimiter = new MessageRateLimiter();
   const wsHub = new WebSocketHub(store, foodStore);
 
   const server = Bun.serve<WsClientData>({
@@ -74,7 +78,7 @@ export function startServer(config: StoredBackendConfig) {
           return auth;
         }
 
-        const viewerId = req.headers.get("x-food-viewer-id")?.trim();
+        const viewerId = req.headers.get("x-amiokay-viewer-id")?.trim();
         if (!viewerId) {
           return jsonResponse(
             req,
@@ -151,7 +155,7 @@ export function startServer(config: StoredBackendConfig) {
           );
         }
 
-        const viewerId = req.headers.get("x-food-viewer-id")?.trim();
+        const viewerId = req.headers.get("x-amiokay-viewer-id")?.trim();
         if (!viewerId) {
           return jsonResponse(
             req,
@@ -214,6 +218,189 @@ export function startServer(config: StoredBackendConfig) {
             security,
             {
               error: "failed to update food counter",
+            },
+            500,
+          );
+        }
+      }
+
+      if (req.method === "GET" && url.pathname === "/api/messages") {
+        const auth = authenticateHttpRequest(req, security, "dashboard");
+        if (auth instanceof Response) {
+          return auth;
+        }
+
+        try {
+          const page = parseGuestbookPage(url.searchParams.get("page"));
+          const pageSize = parseGuestbookPageSize(url.searchParams.get("pageSize"));
+          return jsonResponse(req, security, guestbookStore.listMessages(page, pageSize));
+        } catch (error) {
+          if (error instanceof RangeError) {
+            return jsonResponse(
+              req,
+              security,
+              {
+                error: error.message,
+              },
+              400,
+            );
+          }
+
+          console.error("[guestbook] failed to list messages", error);
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: "failed to list guestbook messages",
+            },
+            500,
+          );
+        }
+      }
+
+      if (req.method === "POST" && url.pathname === "/api/messages") {
+        const auth = authenticateHttpRequest(req, security, "dashboard");
+        if (auth instanceof Response) {
+          return auth;
+        }
+
+        let body: unknown;
+
+        try {
+          body = await req.json();
+        } catch {
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: "request body must be valid JSON",
+            },
+            400,
+          );
+        }
+
+        if (typeof body !== "object" || body === null) {
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: "request body must be a JSON object",
+            },
+            400,
+          );
+        }
+
+        const payload = body as Record<string, unknown>;
+        const messageBody = typeof payload.body === "string" ? payload.body.trim() : "";
+        const humanToken = typeof payload.humanToken === "string" ? payload.humanToken.trim() : "";
+        const viewerId = req.headers.get("x-amiokay-viewer-id")?.trim();
+        const ip =
+          req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+          req.headers.get("cf-connecting-ip")?.trim() ||
+          req.headers.get("x-real-ip")?.trim() ||
+          "unknown";
+
+        if (!viewerId) {
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: "missing viewer identity",
+            },
+            400,
+          );
+        }
+
+        if (messageBody.length === 0) {
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: "留言不能为空",
+            },
+            400,
+          );
+        }
+
+        if (messageBody.length > 20) {
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: "留言不能超过 20 个字符",
+            },
+            400,
+          );
+        }
+
+        if (humanToken.length === 0) {
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: "缺少人机验证结果",
+            },
+            400,
+          );
+        }
+
+        const rateLimit = messageRateLimiter.registerAttempt(viewerId, ip);
+        if (!rateLimit.ok) {
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: rateLimit.message,
+              code: rateLimit.code,
+              retryAfterMs: rateLimit.retryAfterMs,
+              frozenUntil: rateLimit.frozenUntil,
+            },
+            429,
+          );
+        }
+
+        const isHuman = await validateHumanToken("message", humanToken);
+        if (!isHuman) {
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: "人机验证未通过，请重试",
+            },
+            403,
+          );
+        }
+
+        const moderation = await moderateMessageContent(messageBody);
+        if (!moderation.ok) {
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: moderation.detail ?? "留言包含敏感内容，已被拦截。",
+            },
+            400,
+          );
+        }
+
+        try {
+          const message = guestbookStore.createMessage(messageBody, viewerId);
+          return jsonResponse(
+            req,
+            security,
+            {
+              item: message,
+              nextAllowedAt: messageRateLimiter.markSuccess(viewerId),
+            },
+            201,
+          );
+        } catch (error) {
+          console.error("[guestbook] failed to create message", error);
+          return jsonResponse(
+            req,
+            security,
+            {
+              error: "failed to create guestbook message",
             },
             500,
           );
@@ -455,30 +642,6 @@ export function startServer(config: StoredBackendConfig) {
           security,
           {
             error: "WebSocket upgrade failed for /ws/food",
-          },
-          400,
-        );
-      }
-
-      if (url.pathname === "/ws/message") {
-        const auth = await authenticateMessageWebSocketRequest(req, security);
-        if (auth instanceof Response) {
-          return auth;
-        }
-
-        const upgraded = bunServer.upgrade(req, {
-          data: auth,
-        });
-
-        if (upgraded) {
-          return;
-        }
-
-        return jsonResponse(
-          req,
-          security,
-          {
-            error: "WebSocket upgrade failed for /ws/message",
           },
           400,
         );

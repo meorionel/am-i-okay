@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createProxyErrorResponse, createFoodWebSocketUrl, getOrIssueFoodViewer, requireHumanGate } from "@/src/lib/server/proxy";
+import { createProxyErrorResponse, createFoodWebSocketUrl, getOrIssueVisitor, requireHumanGate } from "@/src/lib/server/proxy";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ export async function GET(request: Request): Promise<Response> {
 			return gateResponse;
 		}
 
-		const { viewerId, cookieValue } = await getOrIssueFoodViewer();
+		const { viewerId, cookieValue } = await getOrIssueVisitor();
 		const response = NextResponse.json(
 			{
 				url: await createFoodWebSocketUrl(viewerId),
@@ -23,7 +23,7 @@ export async function GET(request: Request): Promise<Response> {
 		);
 
 		if (cookieValue) {
-			response.cookies.set("amiokay_food_viewer", cookieValue, {
+			response.cookies.set("amiokay_viewer", cookieValue, {
 				httpOnly: true,
 				sameSite: "lax",
 				secure: process.env.NODE_ENV === "production",
