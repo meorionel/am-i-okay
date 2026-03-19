@@ -11,7 +11,7 @@
 @theme inline {
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
-	--font-sans: var(--font-geist-sans);
+	--font-sans: var(--font-editorial);
 	--font-mono: var(--font-geist-mono);
 }
 
@@ -23,7 +23,7 @@ body {
 	min-height: 100vh;
 	background: var(--background);
 	color: var(--foreground);
-	font-family: var(--font-geist-sans);
+	font-family: var(--font-editorial);
 	text-rendering: optimizeLegibility;
 }
 
