@@ -56,7 +56,7 @@ async function fetchCurrentRaw(pageId: string): Promise<CurrentApiDebug> {
 }
 
 export function DebugClientPage() {
-	const { isVerified, isVerifying, progress, errorMessage, pageId, verify } = useHumanGate();
+	const { isVerified, isShowingSuccess, progress, errorMessage, pageId, verify } = useHumanGate();
 	const { devices, connectionStatus, lastEventAt } = useDashboardStream(isVerified, pageId);
 	const [apiDebug, setApiDebug] = useState<CurrentApiDebug>({
 		loading: true,
@@ -98,7 +98,11 @@ export function DebugClientPage() {
 	}, [isVerified, pageId]);
 
 	if (!isVerified) {
-		return <PageGateScreen isVerifying={isVerifying} progress={progress} errorMessage={errorMessage} onVerify={verify} />;
+		return <PageGateScreen status={errorMessage ? "failed" : "verifying"} progress={progress} errorMessage={errorMessage} onVerify={verify} />;
+	}
+
+	if (isShowingSuccess) {
+		return <PageGateScreen status="success" progress={100} errorMessage={null} onVerify={verify} />;
 	}
 
 	return (

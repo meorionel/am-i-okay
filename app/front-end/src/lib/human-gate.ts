@@ -26,6 +26,7 @@ interface CapController {
 type CapConstructor = new (config?: { apiEndpoint?: string }, el?: HTMLElement) => CapController;
 
 const CAP_JS_DISABLE_WASM_DATA_URL = "data:application/wasm;base64,AA==";
+export const FORCE_HUMAN_VERIFY_STORAGE_KEY = "amiokay_force_human_verify";
 
 let humanPageId = "";
 let capConstructorPromise: Promise<CapConstructor> | null = null;
@@ -92,6 +93,14 @@ export function getHumanPageId(): string {
 	}
 
 	return humanPageId;
+}
+
+export function shouldForceHumanVerify(): boolean {
+	if (typeof window === "undefined") {
+		return false;
+	}
+
+	return window.localStorage.getItem(FORCE_HUMAN_VERIFY_STORAGE_KEY) !== null;
 }
 
 export async function solveHumanChallenge(

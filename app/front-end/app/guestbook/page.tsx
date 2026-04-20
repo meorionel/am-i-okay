@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useState } from "react";
 import { gooeyToast } from "goey-toast";
 import { PageLoading } from "../loading";
 import { GuestbookComposer } from "@/src/components/guestbook/guestbook-composer";
@@ -16,7 +16,7 @@ const PAGE_SIZE = 20;
 const COOLDOWN_STORAGE_KEY = "amiokay_guestbook_cooldown_until";
 
 export default function GuestbookPage() {
-	const { isVerified, isCheckingStatus, isVerifying, progress, errorMessage, pageId, verify } = useHumanGate();
+	const { isVerified, isShowingSuccess, isCheckingStatus, progress, errorMessage, pageId, verify } = useHumanGate();
 	const [draft, setDraft] = useState("");
 	const [messages, setMessages] = useState<GuestbookMessage[]>([]);
 	const [page, setPage] = useState(1);
@@ -69,7 +69,7 @@ export default function GuestbookPage() {
 		};
 	}, [cooldownRemainingMs]);
 
-	const syncCooldown = useEffectEvent((nextAllowedAt: string): void => {
+	const syncCooldown = (nextAllowedAt: string): void => {
 		const nextAllowedAtMs = new Date(nextAllowedAt).getTime();
 		if (!Number.isFinite(nextAllowedAtMs)) {
 			return;
@@ -79,7 +79,7 @@ export default function GuestbookPage() {
 		if (typeof window !== "undefined") {
 			window.localStorage.setItem(COOLDOWN_STORAGE_KEY, new Date(nextAllowedAtMs).toISOString());
 		}
-	});
+	};
 
 	useEffect(() => {
 		if (!isVerified) {
@@ -164,11 +164,15 @@ export default function GuestbookPage() {
 	}
 
 	if (!isVerified) {
-		return <PageGateScreen isVerifying={isVerifying} progress={progress} errorMessage={errorMessage} onVerify={verify} />;
+		return <PageGateScreen status={errorMessage ? "failed" : "verifying"} progress={progress} errorMessage={errorMessage} onVerify={verify} />;
+	}
+
+	if (isShowingSuccess) {
+		return <PageGateScreen status="success" progress={100} errorMessage={null} onVerify={verify} />;
 	}
 
 	return (
-		<main className="min-h-screen bg-[radial-gradient(circle_at_top,#ffffff_0%,#fbfaf6_24%,#f2f0e8_62%,#ece8de_100%)] px-6 py-16 text-stone-700 sm:px-8 sm:py-24">
+		<main className="min-h-screen bg-[#f5f5f2] px-6 py-16 text-stone-700 sm:px-8 sm:py-24">
 			<div className="mx-auto w-full max-w-2xl">
 				<GuestbookHeader />
 				<GuestbookComposer draft={draft} setDraft={setDraft} onSubmit={() => void submitMessage()} isSending={isSending} cooldownRemainingMs={cooldownRemainingMs} />

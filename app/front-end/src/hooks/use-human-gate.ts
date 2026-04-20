@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { getHumanPageId, solveHumanChallenge } from "@/src/lib/human-gate";
+import { getHumanPageId, shouldForceHumanVerify, solveHumanChallenge } from "@/src/lib/human-gate";
 
 function toErrorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
@@ -9,6 +9,7 @@ function toErrorMessage(error: unknown): string {
 
 export function useHumanGate(): {
 	isVerified: boolean;
+	isShowingSuccess: boolean;
 	isCheckingStatus: boolean;
 	isVerifying: boolean;
 	progress: number;
@@ -18,11 +19,13 @@ export function useHumanGate(): {
 } {
 	const [pageId] = useState(() => getHumanPageId());
 	const [isVerified, setIsVerified] = useState(false);
+	const [isShowingSuccess, setIsShowingSuccess] = useState(false);
 	const [isCheckingStatus, setIsCheckingStatus] = useState(true);
 	const [isVerifying, setIsVerifying] = useState(false);
 	const [progress, setProgress] = useState(0);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const hasAutoStartedRef = useRef(false);
+	const successTimeoutRef = useRef<number | null>(null);
 
 	const verify = async (): Promise<void> => {
 		if (isVerifying) {
@@ -53,7 +56,15 @@ export function useHumanGate(): {
 			}
 
 			setProgress(100);
+			if (successTimeoutRef.current !== null) {
+				window.clearTimeout(successTimeoutRef.current);
+			}
+			setIsShowingSuccess(true);
 			setIsVerified(true);
+			successTimeoutRef.current = window.setTimeout(() => {
+				setIsShowingSuccess(false);
+				successTimeoutRef.current = null;
+			}, 900);
 		} catch (error) {
 			setErrorMessage(toErrorMessage(error));
 			setProgress(0);
@@ -71,8 +82,16 @@ export function useHumanGate(): {
 
 	useEffect(() => {
 		let isActive = true;
+		const forceVerify = shouldForceHumanVerify();
 
 		const checkStatus = async (): Promise<void> => {
+			if (forceVerify) {
+				if (isActive) {
+					setIsCheckingStatus(false);
+				}
+				return;
+			}
+
 			try {
 				const response = await fetch("/api/human/page/status", {
 					method: "GET",
@@ -108,6 +127,14 @@ export function useHumanGate(): {
 	}, []);
 
 	useEffect(() => {
+		return () => {
+			if (successTimeoutRef.current !== null) {
+				window.clearTimeout(successTimeoutRef.current);
+			}
+		};
+	}, []);
+
+	useEffect(() => {
 		if (isCheckingStatus || hasAutoStartedRef.current || isVerified || isVerifying) {
 			return;
 		}
@@ -118,6 +145,7 @@ export function useHumanGate(): {
 
 	return {
 		isVerified,
+		isShowingSuccess,
 		isCheckingStatus,
 		isVerifying,
 		progress,
