@@ -4,6 +4,10 @@ const footerLinks = [
 		href: "https://icp.gov.moe/?keyword=20260415",
 	},
 	{
+		label: "GitHub",
+		href: "https://github.com/meorionel/am-i-okay",
+	},
+	{
 		label: "我的博客",
 		href: "https://blog.meorion.moe/",
 	}
